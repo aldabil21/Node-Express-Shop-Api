@@ -1,3 +1,4 @@
 {
-  "product_not_found": "المنتج {{product}} غير موجود..."
+  "product_not_found": "المنتج {{product}} غير موجود...",
+  "special_gt_price": "سعر العرض {{special}} يجب أن يكون أقل من سعر المنتج {{price}}"
 }

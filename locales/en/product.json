@@ -1,3 +1,4 @@
 {
-  "product_not_found": "Product {{product}} Not Found..."
+  "product_not_found": "Product {{product}} Not Found...",
+  "special_gt_price": "Special price {{special}} is not lower than original price {{price}}"
 }

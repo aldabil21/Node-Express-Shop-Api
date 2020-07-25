@@ -1,6 +1,5 @@
 const Product = require("../models/product");
 const i18next = require("../i18next");
-const { validationResult } = require("express-validator");
 const ErrorResponse = require("../helpers/error");
 const { strToBoolaen } = require("../helpers/generals");
 

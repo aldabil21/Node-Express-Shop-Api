@@ -429,6 +429,22 @@ exports.deleteProduct = async (product_id) => {
   return product_id;
 };
 
+exports.findOneProduct = async (product_id) => {
+  const [product, fields] = await db.query(
+    `SELECT DISTINCT * FROM product WHERE product_id = '${product_id}'`
+  );
+
+  if (!product[0]) {
+    //Not exist
+    throw new ErrorResponse(
+      404,
+      i18next.t("product:product_not_found", { product: product_id })
+    );
+  }
+
+  return product[0];
+};
+
 ////References
 // exports.getProductsSingleQuery = async (filters) => {
 //   const { language, category, filter, page, sort, direction } = filters;
