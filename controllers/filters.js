@@ -1,4 +1,3 @@
-const Product = require("../models/product");
 const Filters = require("../models/filters");
 const ErrorResponse = require("../helpers/error");
 

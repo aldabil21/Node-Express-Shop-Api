@@ -85,22 +85,25 @@ exports.addFilter = withTransaction(async (transaction, body) => {
   return this.getFilter(filter.insertId);
 });
 
-exports.updateFilter = withTransaction(async (transaction, body) => {
-  const description = [...body.description];
-  const filter_id = body.id;
-  delete body.description;
-  delete body.id;
+exports.updateFilter = withTransaction(async (transaction, data) => {
+  const description = [...data.description];
+  const filter_id = data.id;
+  delete data.description;
+  delete data.id;
 
   const [filter, _] = await transaction.query(
     `UPDATE filter SET ? WHERE filter_id = '${filter_id}'`,
     {
-      ...body,
+      ...data,
       date_modified: new Date(),
     }
   );
 
   if (!filter.affectedRows) {
-    throw new ErrorResponse(404, "filter not found");
+    throw new ErrorResponse(
+      404,
+      i18next.t("common:not_found", { id: filter_id })
+    );
   }
 
   if (description) {
@@ -128,6 +131,10 @@ exports.deleteFilter = async (filter_id) => {
       i18next.t("common:not_found", { id: filter_id })
     );
   }
+
+  const [children, _c] = await db.query(
+    `DELETE FROM filter WHERE parent_id = '${filter_id}'`
+  );
 
   return +filter_id;
 };

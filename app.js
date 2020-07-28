@@ -17,11 +17,13 @@ app.use(languegeSetter);
 const products = require("./routes/product");
 const specials = require("./routes/specials");
 const filters = require("./routes/filters");
+const categories = require("./routes/categories");
 const settings = require("./routes/settings");
 
 app.use("/api/v1/products", products);
 app.use("/api/v1/products", specials);
 app.use("/api/v1/filters", filters);
+app.use("/api/v1/categories", categories);
 app.use("/api/v1", settings);
 
 //Error handlers
