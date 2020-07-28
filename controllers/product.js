@@ -12,7 +12,7 @@ exports.getProduct = async (req, res, next) => {
   try {
     const product = await Product.getProduct(id);
 
-    if (!product.product_id) {
+    if (!product) {
       throw new ErrorResponse(
         404,
         i18next.t("product:product_not_found", { product: id })
@@ -101,8 +101,8 @@ exports.deleteProduct = async (req, res, next) => {
   const { id } = req.params;
 
   try {
-    const product = await Product.deleteProduct(id);
-    res.status(200).json({ success: true, data: product });
+    const deletedId = await Product.deleteProduct(id);
+    res.status(200).json({ success: true, data: deletedId });
   } catch (err) {
     next(err);
   }

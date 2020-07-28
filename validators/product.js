@@ -2,13 +2,7 @@ const { checkSchema } = require("express-validator");
 const i18next = require("../i18next");
 
 const languageChecker = {
-  options: (value) => {
-    const valid = i18next.options.supportedLngs.includes(value);
-    if (!valid) {
-      return false;
-    }
-    return true;
-  },
+  options: (value) => i18next.options.supportedLngs.includes(value),
   errorMessage: (value) => `This language ${value} is not supported`,
 };
 
@@ -54,8 +48,8 @@ exports.productSchema = checkSchema({
       errorMessage: "Please enter a title",
     },
     isLength: {
-      errorMessage: "Maximum 255 letter",
-      options: { max: 255 },
+      errorMessage: "Must be between 3 and 255 letter",
+      options: { min: 3, max: 255 },
     },
   },
   "description.*.description": {

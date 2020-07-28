@@ -49,5 +49,5 @@ exports.deleteProductSpecial = async (id) => {
     throw new ErrorResponse(404, i18next.t("common:not_found", { id: id }));
   }
 
-  return id;
+  return +id;
 };

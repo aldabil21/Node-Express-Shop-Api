@@ -27,7 +27,7 @@ router.post("/", productSchema, addProduct);
 //@route    PUT
 //@access   ADMIN
 //@desc     Update Product
-router.put("//:id", productSchema, updateProduct);
+router.put("/:id", productSchema, updateProduct);
 
 //@route    DELETE
 //@access   ADMIN
