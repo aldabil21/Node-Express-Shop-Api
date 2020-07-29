@@ -5,7 +5,7 @@ const i18next = require("../i18next");
 
 exports.getProduct = async (product_id, shortVer) => {
   let sql = `SELECT p.product_id, p.quantity, p.image, p.price, MIN(ps.price) AS special, p.points, p.tax_id, p.available_at,
-              pd.title, pd.description, pd.tags, pd.meta_title, pd.meta_description, pd.meta_keywords, cat.status AS catStatus              
+              p.view, p.sold, pd.title, pd.description, pd.tags, pd.meta_title, pd.meta_description, pd.meta_keywords, cat.status AS catStatus              
               FROM product p
               LEFT JOIN product_category pc ON(pc.product_id = p.product_id)
               LEFT JOIN category cat ON(pc.category_id = cat.category_id AND cat.status = '1')
@@ -60,7 +60,7 @@ exports.getProducts = async (filters) => {
   const _start = (_page - 1) * _limit;
 
   let sql = `SELECT p.product_id, p.quantity, p.image, p.price, MIN(ps.price) AS special, p.points, p.tax_id, p.available_at,
-              pd.title, pd.description, pd.tags, pd.meta_title, pd.meta_description, pd.meta_keywords              
+              p.view, pd.title, pd.description, pd.tags, pd.meta_title, pd.meta_description, pd.meta_keywords              
               FROM product p
               LEFT JOIN product_description pd ON(p.product_id = pd.product_id)
               LEFT JOIN product_category pc ON(p.product_id = pc.product_id)
@@ -466,7 +466,13 @@ exports.getProductFilters = async (product_id) => {
   return filters;
 };
 
-////References
+exports.addViewCount = (product_id, currentView) => {
+  db.query(`UPDATE product SET ? WHERE product_id = '${product_id}'`, {
+    view: ++currentView,
+  });
+};
+
+////Reference
 // exports.getProductsSingleQuery = async (filters) => {
 //   const { language, category, filter, page, sort, direction } = filters;
 

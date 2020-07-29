@@ -18,8 +18,9 @@ exports.getProduct = async (req, res, next) => {
         i18next.t("product:product_not_found", { product: id })
       );
     }
-
     res.status(200).json({ success: true, data: product });
+    //Internal: add view count
+    Product.addViewCount(product.product_id, product.view);
   } catch (err) {
     next(err);
   }
@@ -36,7 +37,7 @@ exports.getProducts = async (req, res, next) => {
     page = 1,
     perPage = 20,
     sort = "view",
-    direction = "ASC",
+    direction = "DESC",
   } = req.query;
 
   const filters = {

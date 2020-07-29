@@ -19,6 +19,7 @@ i18next
     // interpolation: {
     //   escapeValue: false, //careful XSS
     // },
+    detection: { lookupCookie: "locale", lookupHeader: "accept-language" },
   });
 
 module.exports = i18next;

@@ -1,7 +1,14 @@
 const express = require("express");
-const PORT = process.env.PORT || 5050;
+const cookieParser = require("cookie-parser");
+const guestId = require("./middlewares/guestId");
+const PORT = process.env.PORT || 5000;
 const { errorHandler, error404 } = require("./middlewares/error");
+
 const app = express();
+
+//Cookie
+app.use(cookieParser());
+app.use(guestId);
 
 //Parsers
 app.use(express.json());

@@ -14,8 +14,7 @@ const withTransaction = (fn) => async (...args) => {
     // await connection.commit();
     // return result;
   } catch (err) {
-    console.log(`TRANSACTION ERROR ${err}`);
-    console.log("ROLLING BACK");
+    console.log(`ROLLING BACK: ERROR ${err}`);
     await connection.rollback();
     throw err;
   } finally {

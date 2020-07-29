@@ -62,7 +62,7 @@ exports.deleteProductSpecial = async (req, res, next) => {
   const { product_id, id } = req.params;
 
   try {
-    await Product.findOneProduct(product_id);
+    // await Product.findOneProduct(product_id);
     const deletedId = await Specials.deleteProductSpecial(id);
     res.status(200).json({ success: true, data: deletedId });
   } catch (err) {
