@@ -1,4 +1,6 @@
 {
   "product_not_found": "المنتج {{product}} غير موجود...",
-  "special_gt_price": "سعر العرض {{special}} يجب أن يكون أقل من سعر المنتج {{price}}"
+  "special_gt_price": "سعر العرض {{special}} يجب أن يكون أقل من سعر المنتج {{price}}",
+  "max_quantity_available": "مع الأسف, الكمية القصوى المتاحة للمنتج {{product}} هي {{quantity}}",
+  "min_quantity_err": "الحد الأدنى لطلب المنتج {{product}} هو {{quantity}}"
 }

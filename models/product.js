@@ -1,52 +1,85 @@
+const Settings = require("./settings");
+const Tax = require("./tax");
 const db = require("../config/db");
 const withTransaction = require("../helpers/withTransaction");
 const ErrorResponse = require("../helpers/error");
 const i18next = require("../i18next");
 
-exports.getProduct = async (product_id, shortVer) => {
-  let sql = `SELECT p.product_id, p.quantity, p.image, p.price, MIN(ps.price) AS special, p.points, p.tax_id, p.available_at,
-              p.view, p.sold, pd.title, pd.description, pd.tags, pd.meta_title, pd.meta_description, pd.meta_keywords, cat.status AS catStatus              
-              FROM product p
+const fullVer = [
+  "categories",
+  "filters",
+  "options",
+  "attributes",
+  "wholesales",
+];
+const shortVer = ["categories", "filters"];
+
+exports.getProduct = async (product_id, includes = fullVer) => {
+  let sql = `SELECT p.product_id, p.quantity, p.image, p.price, ps.price AS special, p.points, p.tax_id, t.value AS tax_value,
+              p.available_at, p.view, p.sold, pd.title, pd.description, pd.tags, pd.meta_title, pd.meta_description, pd.meta_keywords,
+              p.minimum, p.maximum FROM product p
               LEFT JOIN product_category pc ON(pc.product_id = p.product_id)
-              LEFT JOIN category cat ON(pc.category_id = cat.category_id AND cat.status = '1')
+              LEFT JOIN category cat ON(pc.category_id = cat.category_id)
               LEFT JOIN product_description pd ON(p.product_id = pd.product_id)
               LEFT JOIN product_special ps ON(p.product_id = ps.product_id AND ps.deadline > NOW() AND ps.status = '1')
+              LEFT JOIN tax t ON(p.tax_id = t.tax_id AND t.status = '1')
+              WHERE p.product_id = '${product_id}' AND pd.language = '${reqLanguage}' AND p.status = '1' AND cat.status = '1' ORDER BY ps.price
               `;
-
-  sql += ` WHERE p.product_id = '${product_id}' AND pd.language = '${reqLanguage}' AND p.status = '1'`;
 
   const [product, _] = await db.query(sql);
 
+  // if (!product.length) {
+  //   throw new ErrorResponse(
+  //     404,
+  //     i18next.t("product:product_not_found", { product: product_id })
+  //   );
+  // }
+
   let result = product[0];
 
-  if (result && !result.catStatus) {
-    //TODO: Solve query, if category disabled shoule not return product (catStatus temp solution)
-    // Note: this query works correct if use `SELECT * ...`
-    return;
-  }
   if (result && result.product_id) {
-    if (shortVer) {
+    const taxSetting = await Settings.getSetting("tax", "status");
+    const calculateTax = taxSetting && taxSetting.value === "1";
+    if (calculateTax) {
+      result.price = Tax.calculate(result.tax_value, result.price);
+      result.special = Tax.calculate(result.tax_value, result.special);
+    }
+
+    if (includes.includes("categories")) {
       //get categories
       const categories = await this.getProductCategories(result.product_id);
       result.categories = categories;
-    } else {
-      //Ommit with short version product
+    }
+    if (includes.includes("options")) {
       //Get options
       const options = await this.getProductOptions(result.product_id);
+      if (calculateTax) {
+        for (const op of options) {
+          op.price = Tax.calculate(result.tax_value, op.price);
+        }
+      }
       result.options = options;
-
+    }
+    if (includes.includes("attributes")) {
       //Get attributes
       const attributes = await this.getProductAttributes(result.product_id);
       result.attributes = attributes;
-
+    }
+    if (includes.includes("wholesales")) {
       //get wholesale_prices
       const wholesales = await this.getProductWholesales(result.product_id);
+      if (calculateTax) {
+        for (const wholesale of wholesales) {
+          wholesale.price = Tax.calculate(result.tax_value, wholesale.price);
+        }
+      }
       result.wholesales = wholesales;
     }
-    //get filters
-    const filters = await this.getProductFilters(result.product_id);
-
-    result.filters = filters;
+    if (includes.includes("filters")) {
+      //get filters
+      const filters = await this.getProductFilters(result.product_id);
+      result.filters = filters;
+    }
   }
 
   return result;
@@ -60,13 +93,14 @@ exports.getProducts = async (filters) => {
   const _start = (_page - 1) * _limit;
 
   let sql = `SELECT p.product_id, p.quantity, p.image, p.price, MIN(ps.price) AS special, p.points, p.tax_id, p.available_at,
-              p.view, pd.title, pd.description, pd.tags, pd.meta_title, pd.meta_description, pd.meta_keywords              
+              p.view, p.sold, pd.title, pd.description, pd.tags, pd.meta_title, pd.meta_description, pd.meta_keywords, t.value AS tax_value              
               FROM product p
               LEFT JOIN product_description pd ON(p.product_id = pd.product_id)
               LEFT JOIN product_category pc ON(p.product_id = pc.product_id)
               INNER JOIN category cat ON(pc.category_id = cat.category_id AND cat.status = '1')
               LEFT JOIN product_filter pf ON(p.product_id = pf.product_id)
               LEFT JOIN product_special ps ON(p.product_id = ps.product_id)
+              LEFT JOIN tax t ON(p.tax_id = t.tax_id AND t.status = '1')
               `;
 
   sql += ` WHERE p.status = '1' AND pd.language = '${reqLanguage}'`;
@@ -97,17 +131,43 @@ exports.getProducts = async (filters) => {
 
   sql += ` LIMIT ${_start}, ${_limit}`;
 
-  const [products, _] = await db.query(sql);
+  const [results, _] = await db.query(sql);
 
-  if (products.length) {
-    for (let product of products) {
+  let products = [];
+  if (results.length) {
+    const taxSetting = await Settings.getSetting("tax", "status");
+    const calculateTax = taxSetting && taxSetting.value === "1";
+
+    for (let product of results) {
+      let price = product.price;
+      let special = product.special;
+
+      if (calculateTax) {
+        price = Tax.calculate(product.tax_value, product.price);
+        special =
+          product.special && Tax.calculate(product.tax_value, product.special);
+      }
+
       //get categories
       const categories = await this.getProductCategories(product.product_id);
-      product.categories = categories;
 
       //get filters
       const filters = await this.getProductFilters(product.product_id);
-      product.filters = filters;
+
+      products.push({
+        product_id: product.product_id,
+        quantity: product.quantity,
+        image: product.image,
+        price: +price,
+        special: +special,
+        points: product.points,
+        available_at: product.available_at,
+        view: product.view,
+        sold: product.sold,
+        title: product.title,
+        categories,
+        filters,
+      });
     }
   }
 
@@ -245,7 +305,7 @@ exports.addProduct = withTransaction(async (transaction, body) => {
   }
 
   await transaction.commit();
-  return this.getProduct(product.insertId, true);
+  return this.getProduct(product.insertId, shortVer);
 });
 
 exports.updateProduct = withTransaction(
@@ -380,7 +440,7 @@ exports.updateProduct = withTransaction(
     }
 
     await transaction.commit();
-    return this.getProduct(product_id, true);
+    return this.getProduct(product_id, shortVer);
   }
 );
 
@@ -425,13 +485,12 @@ exports.getProductCategories = async (product_id) => {
 };
 
 exports.getProductOptions = async (product_id) => {
-  const [
-    options,
-    fields,
-  ] = await db.query(`SELECT po.option_id, po.quantity, po.price, od.title
-                      FROM product_option po
-                      LEFT JOIN option_description od ON(po.option_id = od.option_id AND od.language = '${reqLanguage}')
-                      WHERE po.product_id = '${product_id}'`);
+  let sql = `SELECT po.option_id, po.quantity, po.price, od.title
+             FROM product_option po
+             LEFT JOIN option_description od ON(po.option_id = od.option_id AND od.language = '${reqLanguage}')
+             WHERE po.product_id = '${product_id}'`;
+
+  const [options, fields] = await db.query(sql);
 
   return options;
 };
@@ -441,16 +500,16 @@ exports.getProductAttributes = async (product_id) => {
     attributes,
     fields,
   ] = await db.query(`SELECT pa.attribute_id, pa.description, ad.title FROM product_attribute pa
-                          LEFT JOIN attribute_description ad ON(ad.attribute_id = pa.attribute_id AND ad.language = '${reqLanguage}')
-                          LEFT JOIN attribute aa ON(aa.attribute_id = pa.attribute_id)
-                          WHERE pa.product_id = '${product_id}' AND pa.language = '${reqLanguage}' AND aa.status = '1'`);
+                      LEFT JOIN attribute_description ad ON(ad.attribute_id = pa.attribute_id AND ad.language = '${reqLanguage}')
+                      LEFT JOIN attribute aa ON(aa.attribute_id = pa.attribute_id)
+                      WHERE pa.product_id = '${product_id}' AND pa.language = '${reqLanguage}' AND aa.status = '1'`);
 
   return attributes;
 };
 
 exports.getProductWholesales = async (product_id) => {
   const [wholesales, _w] = await db.query(
-    `SELECT id, quantity, price FROM product_wholesales WHERE product_id = ${product_id}`
+    `SELECT id, quantity, price FROM product_wholesales WHERE product_id = ${product_id} ORDER BY quantity`
   );
 
   return wholesales;

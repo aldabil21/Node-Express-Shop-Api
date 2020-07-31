@@ -1,7 +1,7 @@
 const crypto = require("crypto");
 
 const options = {
-  expires: new Date(Date.now() + 24 * 7 * 60 * 60 * 1000),
+  expires: new Date(Date.now() + 24 * 7 * 60 * 60 * 1000), //A week
   httpOnly: true,
   secure: process.env.NODE_ENV === "production",
 };
