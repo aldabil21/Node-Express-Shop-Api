@@ -26,11 +26,10 @@ exports.getCart = async (req, res, next) => {
 //@desc     Add to cart
 exports.addToCart = async (req, res, next) => {
   try {
-    let user_id;
+    let user_id = req.guest;
     if (req.user) {
       user_id = req.user;
     }
-    user_id = req.guest;
     const data = {
       ...req.body,
       user_id,
@@ -46,36 +45,49 @@ exports.addToCart = async (req, res, next) => {
   }
 };
 
-// //@route    PUT
-// //@access   ADMIN
-// //@desc     Update Filter
-// exports.updateFilter = async (req, res, next) => {
-//   const { id } = req.params;
-//   const data = {
-//     id,
-//     ...req.body,
-//   };
+//@route    PUT
+//@access   PUBLIC
+//@desc     Edit cart item
+exports.editCartItem = async (req, res, next) => {
+  const { id } = req.params;
 
-//   try {
-//     ErrorResponse.validateRequest(req);
-//     const filter = await Filters.updateFilter(data);
-//     res.status(200).json({ success: true, data: filter });
-//   } catch (err) {
-//     next(err);
-//   }
-// };
+  try {
+    let user_id = req.guest;
+    if (req.user) {
+      user_id = req.user;
+    }
+    const data = {
+      id,
+      ...req.body,
+      user_id,
+    };
+    ErrorResponse.validateRequest(req);
+    const updatedCart = await Cart.edit(data);
+    res.status(200).json({ success: true, data: updatedCart });
+  } catch (err) {
+    next(err);
+  }
+};
 
-// //@route    DELETE
-// //@access   ADMIN
-// //@desc     Delete Filter
-// exports.deleteFilter = async (req, res, next) => {
-//   const { id } = req.params;
+//@route    DELETE
+//@access   PUBLIC
+//@desc     Delete cart item
+exports.deleteCartItem = async (req, res, next) => {
+  const { id } = req.params;
 
-//   try {
-//     await Filters.getFilter(id, false);
-//     const deletedId = await Filters.deleteFilter(id);
-//     res.status(200).json({ success: true, data: deletedId });
-//   } catch (err) {
-//     next(err);
-//   }
-// };
+  try {
+    let user_id = req.guest;
+    if (req.user) {
+      user_id = req.user;
+    }
+    const data = {
+      id,
+      user_id,
+    };
+
+    const deletedId = await Cart.delete(data);
+    res.status(200).json({ success: true, data: deletedId });
+  } catch (err) {
+    next(err);
+  }
+};

@@ -1,10 +1,14 @@
 const express = require("express");
 const cookieParser = require("cookie-parser");
 const guestId = require("./middlewares/guestId");
+const settingsLoader = require("./middlewares/settings");
 const PORT = process.env.PORT || 5000;
 const { errorHandler, error404 } = require("./middlewares/error");
 
 const app = express();
+
+//AppConfig loader
+app.use(settingsLoader);
 
 //Cookie
 app.use(cookieParser());

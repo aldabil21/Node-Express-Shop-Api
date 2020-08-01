@@ -1,24 +1,17 @@
 const db = require("../config/db");
 
-exports.getSettings = async (code) => {
-  let sql = `SELECT * from setting WHERE value IS NOT NULL`;
-  if (code) {
-    sql += ` AND code = '${code}'`;
-  }
+exports.loadSettings = async () => {
+  let sql = `SELECT * from setting`;
   const [settings, fields] = await db.query(sql);
-
   return settings;
 };
 
-exports.getSetting = async (code, key_id) => {
-  let sql = `SELECT * from setting WHERE value IS NOT NULL`;
-  if (code) {
-    sql += ` AND code = '${code}'`;
-  }
-  if (key_id) {
-    sql += ` AND key_id = '${key_id}'`;
-  }
-  const [settings, fields] = await db.query(sql);
+exports.getSetting = (code, key_id) => {
+  return AppConfig.find(
+    (config) => config.code === code && config.key_id === key_id
+  );
+};
 
-  return settings[0];
+exports.getSettings = (code) => {
+  return AppConfig.filter((config) => config.code === code);
 };

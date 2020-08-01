@@ -25,7 +25,8 @@ exports.getCart = async (data) => {
       if (!productInfo || item.quantity > productInfo.quantity) {
         //product was deleted or disabled, omit from cart
         cartChangedNotice = i18next.t("cart:cart_changed_notice");
-        //TODO: delete item
+        //delete cart item silently
+        this.delete({ id: item.item_id, user_id });
         continue;
       }
 
@@ -41,7 +42,8 @@ exports.getCart = async (data) => {
         if (!selectedOption || item.quantity > selectedOption.quantity) {
           //option was deleted or changed, omit from cart
           cartChangedNotice = i18next.t("cart:cart_changed_notice");
-          //TODO: delete item
+          //delete cart item silently
+          this.delete({ id: item.item_id, user_id });
           continue;
         }
         price = selectedOption.price;
@@ -68,7 +70,7 @@ exports.getCart = async (data) => {
         quantity: item.quantity,
         image: productInfo.image,
         title: productInfo.title,
-        tax_id: productInfo.tax_id,
+        weight: productInfo.weight,
         price: price,
         special: special,
         option: option,
@@ -79,8 +81,11 @@ exports.getCart = async (data) => {
   }
 
   // Get cart totals
-  const taxSetting = await Settings.getSetting("tax", "status");
+  const taxSetting = Settings.getSetting("tax", "status");
   const withTax = taxSetting && taxSetting.value === "1";
+  const shippingSetting = Settings.getSetting("shipping", "status");
+  const withShipping = shippingSetting && shippingSetting.value === "1";
+
   let neto = {
     text: "Neto",
     value: 0,
@@ -95,17 +100,17 @@ exports.getCart = async (data) => {
     const thisPrice = prod.special ? prod.special : prod.price;
 
     if (withTax) {
-      brutto.value += +thisPrice;
+      brutto.value += +thisPrice * prod.quantity;
     } else {
       //Neto
-      neto.value += +thisPrice;
+      neto.value += +thisPrice * prod.quantity;
 
       //Tax
       let thisTax;
       tax = await getProductTaxValue(prod.product_id);
       if (tax) {
         const existTax = taxes.findIndex((t) => t.text === tax.text);
-        thisTax = Tax.pure(tax.value, thisPrice);
+        thisTax = Tax.pure(tax.value, thisPrice) * prod.quantity;
         if (existTax < 0) {
           taxes.push({
             text: tax.text,
@@ -120,11 +125,22 @@ exports.getCart = async (data) => {
       }
 
       //Brutto
-      brutto.value += +thisPrice + +thisTax;
+      brutto.value += +thisPrice * prod.quantity + +thisTax;
     }
   }
 
-  totals = withTax ? [brutto] : [neto, ...taxes, brutto];
+  let shipping = {
+    text: "free_shipping",
+    value: 0,
+  };
+
+  if (withShipping) {
+    shipping = await calculateShipping(products);
+  }
+
+  brutto.value += shipping.value;
+
+  totals = withTax ? [shipping, brutto] : [neto, ...taxes, shipping, brutto];
 
   const cart = {
     products,
@@ -199,8 +215,89 @@ exports.add = async (data) => {
     await db.query(`INSERT INTO cart SET ?`, data);
   }
 
-  return this.getProducts({ user_id });
+  return this.getCart({ user_id });
 };
+
+exports.edit = async (data) => {
+  const { id, product_id, option_id, quantity, user_id } = data;
+
+  const cartItem = await this.getCartItem(id, option_id, user_id);
+  if (!cartItem) {
+    throw new ErrorResponse(
+      404,
+      i18next.t("product:product_not_available", { product: product_id })
+    );
+  }
+  const product = await Product.getProduct(cartItem.product_id, ["options"]);
+
+  if (!product) {
+    throw new ErrorResponse(
+      404,
+      i18next.t("product:product_not_available", { product: product_id })
+    );
+  }
+
+  let stockQuantity = product.quantity;
+  //Check which quantity to compare
+  if (option_id) {
+    const selectedOp = product.options.find((op) => op.option_id === option_id);
+    if (!selectedOp) {
+      throw new ErrorResponse(
+        422,
+        i18next.t("product:option_not_available", { id: option_id })
+      );
+    }
+    stockQuantity = selectedOp.quantity;
+  }
+
+  //check if over maximum
+  if (
+    quantity > stockQuantity ||
+    (product.maximum && quantity > product.maximum)
+  ) {
+    throw new ErrorResponse(
+      422,
+      i18next.t("product:max_quantity_available", {
+        product: product.title,
+        quantity: stockQuantity,
+      })
+    );
+  }
+
+  //check if below minimum
+  if (product.minimum > quantity) {
+    throw new ErrorResponse(
+      422,
+      i18next.t("product:min_quantity_err", {
+        product: product.title,
+        quantity: product.minimum,
+      })
+    );
+  }
+
+  //update quantity
+  await db.query(`UPDATE cart SET ? WHERE item_id = '${cartItem.item_id}'`, {
+    quantity: quantity,
+  });
+
+  return this.getCart({ user_id });
+};
+
+exports.delete = async (data) => {
+  const { id, user_id } = data;
+
+  let sql = `DELETE FROM cart WHERE item_id = '${id}' AND user_id = '${user_id}'`;
+
+  const [item, fields] = await db.query(sql);
+
+  if (!item.affectedRows) {
+    throw new ErrorResponse(404, i18next.t("common:not_found", { id: id }));
+  }
+
+  return +id;
+};
+
+//Helpers
 
 exports.existedItem = async (product_id, option_id, user_id) => {
   let sql = `SELECT DISTINCT * FROM cart WHERE product_id = '${product_id}' AND user_id = '${user_id}'`;
@@ -209,6 +306,19 @@ exports.existedItem = async (product_id, option_id, user_id) => {
     sql += ` AND option_id = '${option_id}'`;
   }
 
+  const [item, fields] = await db.query(sql);
+
+  let cartItem;
+
+  if (item.length) {
+    cartItem = item[0];
+  }
+
+  return cartItem;
+};
+
+exports.getCartItem = async (item_id = 0, option_id = 0, user_id = 0) => {
+  let sql = `SELECT DISTINCT * FROM cart WHERE item_id = '${item_id}' AND user_id = '${user_id}' AND option_id = '${option_id}'`;
   const [item, fields] = await db.query(sql);
 
   let cartItem;
@@ -231,4 +341,47 @@ const getProductTaxValue = async (product_id) => {
     taxInfo = tax[0];
   }
   return taxInfo;
+};
+
+const calculateShipping = async (products) => {
+  //flat rate
+  const flat = Settings.getSetting("shipping", "flat_status");
+  const isFlat = flat && flat.value === "1";
+  if (isFlat) {
+    const flatRate = Settings.getSetting("shipping", "flat_rate");
+    const flatValue = flatRate ? flatRate.value : 0;
+    return {
+      text: "flat_rate",
+      value: +flatValue,
+    };
+  }
+
+  //By weight
+  let cartWeight = 0;
+  const weight = Settings.getSetting("shipping", "weight_status");
+  const isWeight = weight && weight.value === "1";
+  if (isWeight) {
+    cartWeight = calculateWeight(products);
+    const weightBase = Settings.getSetting("shipping", "weight_base");
+    const weightRate = Settings.getSetting("shipping", "weight_rate");
+    const baseval = weightBase ? weightBase.value : 0;
+    const perKiloRate = weightRate ? weightRate.value : 0;
+    const weightTotal = +baseval + (cartWeight / 1000) * perKiloRate;
+    return {
+      text: "weight_rate",
+      value: +weightTotal,
+    };
+  }
+
+  //By zone
+  //TODO: SOAP request to Aramex, Smsa...
+};
+
+const calculateWeight = (products = []) => {
+  let weight = 0;
+  products.forEach((prod) => {
+    weight += +prod.weight;
+  });
+
+  return weight;
 };

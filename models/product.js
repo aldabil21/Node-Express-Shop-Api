@@ -16,7 +16,7 @@ const shortVer = ["categories", "filters"];
 
 exports.getProduct = async (product_id, includes = fullVer) => {
   let sql = `SELECT p.product_id, p.quantity, p.image, p.price, ps.price AS special, p.points, p.tax_id, t.value AS tax_value,
-              p.available_at, p.view, p.sold, pd.title, pd.description, pd.tags, pd.meta_title, pd.meta_description, pd.meta_keywords,
+              p.available_at, p.view, p.sold, p.weight, pd.title, pd.description, pd.tags, pd.meta_title, pd.meta_description, pd.meta_keywords,
               p.minimum, p.maximum FROM product p
               LEFT JOIN product_category pc ON(pc.product_id = p.product_id)
               LEFT JOIN category cat ON(pc.category_id = cat.category_id)
@@ -38,7 +38,7 @@ exports.getProduct = async (product_id, includes = fullVer) => {
   let result = product[0];
 
   if (result && result.product_id) {
-    const taxSetting = await Settings.getSetting("tax", "status");
+    const taxSetting = Settings.getSetting("tax", "status");
     const calculateTax = taxSetting && taxSetting.value === "1";
     if (calculateTax) {
       result.price = Tax.calculate(result.tax_value, result.price);
@@ -135,7 +135,7 @@ exports.getProducts = async (filters) => {
 
   let products = [];
   if (results.length) {
-    const taxSetting = await Settings.getSetting("tax", "status");
+    const taxSetting = Settings.getSetting("tax", "status");
     const calculateTax = taxSetting && taxSetting.value === "1";
 
     for (let product of results) {
@@ -296,7 +296,7 @@ exports.addProduct = withTransaction(async (transaction, body) => {
   //insert wholesale_prices
   if (wholesale_prices && wholesale_prices.length > 0) {
     for (let wholesale of wholesale_prices) {
-      await transaction.query("INSERT INTO product_wholesales SET ?", {
+      await transaction.query("INSERT INTO product_wholesale SET ?", {
         product_id: product.insertId,
         quantity: wholesale.quantity,
         price: wholesale.price,
@@ -420,7 +420,7 @@ exports.updateProduct = withTransaction(
 
     //update wholesale_prices
     await transaction.query(
-      `DELETE FROM product_wholesales WHERE product_id = '${product_id}'`
+      `DELETE FROM product_wholesale WHERE product_id = '${product_id}'`
     );
     if (wholesale_prices && wholesale_prices.length > 0) {
       for (let wholesale of wholesale_prices) {
@@ -433,7 +433,7 @@ exports.updateProduct = withTransaction(
           wholesaleDetail.id = wholesale.id;
         }
         await transaction.query(
-          "INSERT INTO product_wholesales SET ?",
+          "INSERT INTO product_wholesale SET ?",
           wholesaleDetail
         );
       }
@@ -509,7 +509,7 @@ exports.getProductAttributes = async (product_id) => {
 
 exports.getProductWholesales = async (product_id) => {
   const [wholesales, _w] = await db.query(
-    `SELECT id, quantity, price FROM product_wholesales WHERE product_id = ${product_id} ORDER BY quantity`
+    `SELECT id, quantity, price FROM product_wholesale WHERE product_id = ${product_id} ORDER BY quantity`
   );
 
   return wholesales;
