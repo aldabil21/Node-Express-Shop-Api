@@ -5,6 +5,10 @@ const Tax = require("./tax");
 const i18next = require("../i18next");
 const ErrorResponse = require("../helpers/error");
 
+const soap = require("soap");
+const path = require("path");
+const Aramex = require("../helpers/aramex");
+
 exports.getCart = async (data) => {
   const { user_id } = data;
 
@@ -81,10 +85,10 @@ exports.getCart = async (data) => {
   }
 
   // Get cart totals
-  const taxSetting = Settings.getSetting("tax", "status");
-  const withTax = taxSetting && taxSetting.value === "1";
-  const shippingSetting = Settings.getSetting("shipping", "status");
-  const withShipping = shippingSetting && shippingSetting.value === "1";
+  const taxStatus = Settings.getSetting("tax", "status");
+  const withTax = taxStatus.status === "1";
+  const shippingStatus = Settings.getSetting("shipping", "status");
+  const withShipping = shippingStatus.status === "1";
 
   let neto = {
     text: "Neto",
@@ -135,7 +139,10 @@ exports.getCart = async (data) => {
   };
 
   if (withShipping) {
-    shipping = await calculateShipping(products);
+    shippingInfo = await calculateShipping(products);
+    if (shippingInfo) {
+      shipping = shippingInfo;
+    }
   }
 
   brutto.value += shipping.value;
@@ -343,43 +350,61 @@ const getProductTaxValue = async (product_id) => {
   return taxInfo;
 };
 
-const calculateShipping = async (products) => {
+const calculateShipping = async (cartItems = []) => {
   //flat rate
   const flat = Settings.getSetting("shipping", "flat_status");
-  const isFlat = flat && flat.value === "1";
+  const isFlat = flat.flat_status === "1";
   if (isFlat) {
     const flatRate = Settings.getSetting("shipping", "flat_rate");
-    const flatValue = flatRate ? flatRate.value : 0;
+    const flatValue = flatRate.flat_rate || 0;
     return {
       text: "flat_rate",
       value: +flatValue,
     };
   }
 
-  //By weight
-  let cartWeight = 0;
-  const weight = Settings.getSetting("shipping", "weight_status");
-  const isWeight = weight && weight.value === "1";
-  if (isWeight) {
-    cartWeight = calculateWeight(products);
-    const weightBase = Settings.getSetting("shipping", "weight_base");
-    const weightRate = Settings.getSetting("shipping", "weight_rate");
-    const baseval = weightBase ? weightBase.value : 0;
-    const perKiloRate = weightRate ? weightRate.value : 0;
-    const weightTotal = +baseval + (cartWeight / 1000) * perKiloRate;
-    return {
-      text: "weight_rate",
-      value: +weightTotal,
-    };
-  }
+  // //By weight
+  // let cartWeight = 0;
+  // const weight = Settings.getSetting("shipping", "weight_status");
+  // const isWeight = weight && weight.value === "1";
+  // if (isWeight) {
+  //   cartWeight = calculateWeight(products);
+  //   const weightBase = Settings.getSetting("shipping", "weight_base");
+  //   const weightRate = Settings.getSetting("shipping", "weight_rate");
+  //   const baseval = weightBase ? weightBase.value : 0;
+  //   const perKiloRate = weightRate ? weightRate.value : 0;
+  //   const weightTotal = +baseval + (cartWeight / 1000) * perKiloRate;
+  //   return {
+  //     text: "weight_rate",
+  //     value: +weightTotal,
+  //   };
+  // }
 
-  //By zone
+  //By Carriers
   //TODO: SOAP request to Aramex, Smsa...
+  // console.log(Aramex.client.data);
+
+  // try {
+  //   const client = await soap.createClientAsync(
+  //     path.join(
+  //       __dirname,
+  //       "..",
+  //       "aramex_wsdl",
+  //       "dev-aramex-rates-calculator-wsdl.wsdl"
+  //     )
+  //   );
+  //   client.CalculateRate(args, (result, err) => {
+  //     // console.log(err);
+  //     console.log(result);
+  //   });
+  // } catch (err) {
+  //   console.log(err);
+  // }
 };
 
-const calculateWeight = (products = []) => {
+const calculateWeight = (cartItems = []) => {
   let weight = 0;
-  products.forEach((prod) => {
+  cartItems.forEach((prod) => {
     weight += +prod.weight;
   });
 
