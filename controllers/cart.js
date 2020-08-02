@@ -6,14 +6,14 @@ const ErrorResponse = require("../helpers/error");
 //@desc     Get cart
 exports.getCart = async (req, res, next) => {
   try {
-    let user_id;
+    let user_id = req.guest;
     if (req.user) {
       user_id = req.user;
     }
-    user_id = req.guest;
     const data = {
       user_id,
     };
+
     const cart = await Cart.getCart(data);
     res.status(200).json({ success: true, data: cart });
   } catch (err) {

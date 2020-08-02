@@ -337,6 +337,12 @@ exports.getCartItem = async (item_id = 0, option_id = 0, user_id = 0) => {
   return cartItem;
 };
 
+exports.setUserIdAfterAuth = async (guest_id = "", user_id = "") => {
+  await db.query(`UPDATE cart SET ? WHERE user_id = '${guest_id}'`, {
+    user_id,
+  });
+};
+
 const getProductTaxValue = async (product_id) => {
   const [tax, fields] = await db.query(
     `SELECT DISTINCT t.title AS text, t.value from product p LEFT JOIN tax t ON(p.tax_id = t.tax_id) WHERE p.product_id = '${product_id}' AND t.status = '1'`

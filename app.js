@@ -25,6 +25,7 @@ settingsLoader().then(() => {
   app.use(languegeSetter);
 
   //Routes
+  const auth = require("./routes/auth");
   const products = require("./routes/product");
   const specials = require("./routes/specials");
   const filters = require("./routes/filters");
@@ -32,6 +33,7 @@ settingsLoader().then(() => {
   const settings = require("./routes/settings");
   const cart = require("./routes/cart");
 
+  app.use("/api/v1/auth", auth);
   app.use("/api/v1/products", products);
   app.use("/api/v1/products", specials);
   app.use("/api/v1/filters", filters);

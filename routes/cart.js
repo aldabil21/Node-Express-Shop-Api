@@ -7,6 +7,10 @@ const {
   deleteCartItem,
 } = require("../controllers/cart");
 const { cartSchema } = require("../validators/cart");
+const ifAuth = require("../middlewares/ifAuth");
+
+//if Auth user_id = user_id else user_id = guestId
+router.use(ifAuth);
 
 //@route    GET
 //@access   PUBLIC
