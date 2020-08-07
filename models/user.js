@@ -21,7 +21,7 @@ exports.register = async (data) => {
   const salt = await bcrypt.genSalt(10);
   const hashedPassword = await bcrypt.hash(password, salt);
 
-  //TODO: Generate OTP -> Send to Mobile -> Save in db to confirm
+  //TODO: Send OTP to Mobile or Email... to be decided
   const otp = Math.floor(1000 + Math.random() * 9000);
 
   const [registered, fields] = await db.query(`INSERT INTO user SET ?`, {
@@ -113,6 +113,6 @@ exports.findById = async (user_id = "") => {
 
 const generateToken = async (user) => {
   return jwt.sign({ uid: user.user_id }, process.env.JWT_SECRET, {
-    expiresIn: "2d",
+    expiresIn: process.env.JWT_EXPIRESIN,
   });
 };

@@ -14,8 +14,11 @@ exports.getCart = async (req, res, next) => {
       user_id,
     };
 
-    const cart = await Cart.getCart(data);
-    res.status(200).json({ success: true, data: cart });
+    const cartItems = await Cart.getCart(data);
+
+    const totals = await Cart.getTotals(cartItems.products);
+
+    res.status(200).json({ success: true, data: { ...cartItems, totals } });
   } catch (err) {
     next(err);
   }

@@ -1,6 +1,7 @@
 const User = require("../models/user");
 const Cart = require("../models/cart");
 const ErrorResponse = require("../helpers/error");
+const { resGuestIdCookie } = require("../middlewares/guestId");
 
 //@route    POST
 //@access   PUBLIC
@@ -71,6 +72,12 @@ exports.signin = async (req, res, next) => {
   } catch (err) {
     next(err);
   }
+};
+
+exports.signout = (req, res, next) => {
+  res.clearCookie("token");
+  const guestId = resGuestIdCookie(res);
+  res.status(200).json({ success: true, data: {} });
 };
 
 //Helpers

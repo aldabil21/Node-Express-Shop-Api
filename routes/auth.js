@@ -1,7 +1,8 @@
 const express = require("express");
 const router = express.Router();
-const { signup, signin, confirmOTP } = require("../controllers/auth");
+const { signup, signin, confirmOTP, signout } = require("../controllers/auth");
 const { userSchema, isOTP, isSignin } = require("../validators/user");
+const protected = require("../middlewares/protected");
 
 //@route    POST
 //@access   PUBLIC
@@ -18,14 +19,11 @@ router.post("/otp", isOTP, confirmOTP);
 //@desc     Sign in
 router.post("/signin", isSignin, signin);
 
-// //@route    PUT
-// //@access   PUBLIC
-// //@desc     Edit cart item
-// router.put("/:id", cartSchema, editCartItem);
+//@route    POST
+//@access   PROTECTED
+//@desc     Sign out
+router.post("/signout", protected, signout);
 
-// //@route    DELETE
-// //@access   PUBLIC
-// //@desc     Delete cart item
-// router.delete("/:id", deleteCartItem);
+//TODO: routes: reset password -
 
 module.exports = router;

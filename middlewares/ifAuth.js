@@ -1,5 +1,12 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/user");
+const { resGuestIdCookie } = require("./guestId");
+
+/**
+ *  This is to check if user is logged, then use the token's userID
+ *  else stick with the guestID. with no errors throws
+ *  endpints with this "ifAuth" is not protected, just used to pick the right id
+ */
 
 const ifAuth = async (req, res, next) => {
   try {
@@ -17,6 +24,10 @@ const ifAuth = async (req, res, next) => {
 
     if (!token) {
       //keep using guestId
+      // if(!req.guest){
+      //   const guestId = resGuestIdCookie(res);
+      //   req.guest = guestId;
+      // }
       return next();
     }
 

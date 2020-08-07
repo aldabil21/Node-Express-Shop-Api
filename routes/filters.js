@@ -7,9 +7,12 @@ const {
   deleteFilter,
 } = require("../controllers/filters");
 const { filterSchema } = require("../validators/filter");
+const authorize = require("../middlewares/authorize");
+
+router.use(authorize("admin"));
 
 //@route    GET
-//@access   Admin
+//@access   ADMIN
 //@desc     GET All filters (with auto-complete)
 router.get("/", getAllFilters);
 

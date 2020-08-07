@@ -5,10 +5,6 @@ const Tax = require("./tax");
 const i18next = require("../i18next");
 const ErrorResponse = require("../helpers/error");
 
-const soap = require("soap");
-const path = require("path");
-const Aramex = require("../helpers/aramex");
-
 exports.getCart = async (data) => {
   const { user_id } = data;
 
@@ -76,6 +72,7 @@ exports.getCart = async (data) => {
         title: productInfo.title,
         weight: productInfo.weight,
         price: price,
+        tax_value: productInfo.tax_value,
         special: special,
         option: option,
       };
@@ -84,78 +81,121 @@ exports.getCart = async (data) => {
     }
   }
 
-  // Get cart totals
-  const taxStatus = Settings.getSetting("tax", "status");
-  const withTax = taxStatus.status === "1";
-  const shippingStatus = Settings.getSetting("shipping", "status");
-  const withShipping = shippingStatus.status === "1";
-
-  let neto = {
-    text: "Neto",
-    value: 0,
-  };
-  let taxes = [];
-  let brutto = {
-    text: "Brutto",
-    value: 0,
-  };
-  let totals = [];
-  for (const prod of products) {
-    const thisPrice = prod.special ? prod.special : prod.price;
-
-    if (withTax) {
-      brutto.value += +thisPrice * prod.quantity;
-    } else {
-      //Neto
-      neto.value += +thisPrice * prod.quantity;
-
-      //Tax
-      let thisTax;
-      tax = await getProductTaxValue(prod.product_id);
-      if (tax) {
-        const existTax = taxes.findIndex((t) => t.text === tax.text);
-        thisTax = Tax.pure(tax.value, thisPrice) * prod.quantity;
-        if (existTax < 0) {
-          taxes.push({
-            text: tax.text,
-            value: thisTax,
-          });
-        } else {
-          taxes[existTax] = {
-            ...taxes[existTax],
-            value: taxes[existTax].value + thisTax,
-          };
-        }
-      }
-
-      //Brutto
-      brutto.value += +thisPrice * prod.quantity + +thisTax;
-    }
-  }
-
-  let shipping = {
-    text: "free_shipping",
-    value: 0,
-  };
-
-  if (withShipping) {
-    shippingInfo = await calculateShipping(products);
-    if (shippingInfo) {
-      shipping = shippingInfo;
-    }
-  }
-
-  brutto.value += shipping.value;
-
-  totals = withTax ? [shipping, brutto] : [neto, ...taxes, shipping, brutto];
-
   const cart = {
     products,
-    totals,
     notice: cartChangedNotice,
   };
 
   return cart;
+};
+
+exports.getTotals = async (cartItems = []) => {
+  // Get cart totals
+  const withTax = Settings.getSetting("tax", "status").status === "1";
+
+  let neto = {
+    id: "neto",
+    text: i18next.t("common:neto"),
+    value: 0,
+  };
+  let taxes = [];
+  let brutto = {
+    id: "brutto",
+    text: i18next.t("common:brutto"),
+    value: 0,
+  };
+  let totals = [];
+  for (const prod of cartItems) {
+    let thisPrice = prod.special ? prod.special : prod.price;
+
+    if (withTax) {
+      //Deduct tax from product price if it was included (if tax setting was enabled), for correct neto/tax calculation
+      //It was decied to always show detail prices in all interefaces (cart, checkout, order)
+      thisPrice = Tax.deCalculate(thisPrice, prod.tax_value).toFixed(2);
+    }
+
+    //Neto
+    neto.value += +thisPrice * prod.quantity;
+
+    //Tax
+    let thisTax = 0;
+    tax = await getProductTaxValue(prod.product_id);
+    if (tax) {
+      const existTax = taxes.findIndex((t) => t.tax_id === tax.tax_id);
+      thisTax = Tax.pure(thisPrice, tax.value) * prod.quantity;
+      if (existTax < 0) {
+        //Add new tax type
+        taxes.push({
+          tax_id: tax.tax_id,
+          text: tax.text,
+          value: thisTax,
+        });
+      } else {
+        //Sum same tax type
+        taxes[existTax] = {
+          ...taxes[existTax],
+          value: taxes[existTax].value + thisTax,
+        };
+      }
+    }
+
+    brutto.value += +thisPrice * prod.quantity + +thisTax;
+  }
+
+  //Get Shipping Cost
+  const shipping = this.calculateShipping(cartItems);
+  brutto.value += shipping.value;
+
+  totals = [neto, ...taxes, shipping, brutto];
+
+  return totals;
+};
+
+exports.calculateShipping = (cartItems = []) => {
+  const withShipping = Settings.getSetting("shipping", "status").status === "1";
+
+  if (!withShipping) {
+    return {
+      text: i18next.t("common:free_shipping"),
+      value: 0,
+    };
+  }
+
+  //flat rate
+  const isFlat =
+    Settings.getSetting("shipping", "flat_status").flat_status === "1";
+  if (isFlat) {
+    const flatRate = Settings.getSetting("shipping", "flat_rate");
+    const flatValue = flatRate.flat_rate || 0;
+    return {
+      text: "flat_rate",
+      value: +flatValue,
+    };
+  }
+
+  //By weight
+  let cartWeight = 0;
+  const isWeight =
+    Settings.getSetting("shipping", "weight_status").weight_status === "1";
+  if (isWeight) {
+    cartWeight = calculateWeight(cartItems);
+    const weightBase = Settings.getSetting("shipping", "weight_base_amount")
+      .weight_base_amount;
+    const weightRate = Settings.getSetting("shipping", "weight_per_kg_amount")
+      .weight_per_kg_amount;
+    const baseval = weightBase || 0;
+    const perKiloRate = weightRate || 0;
+    const weightTotal = +baseval + (cartWeight / 1000) * perKiloRate;
+    return {
+      text: "weight_rate",
+      value: +weightTotal,
+    };
+  }
+
+  return {
+    text: i18next.t("common:free_shipping"),
+    value: 0,
+  };
 };
 
 exports.add = async (data) => {
@@ -345,7 +385,7 @@ exports.setUserIdAfterAuth = async (guest_id = "", user_id = "") => {
 
 const getProductTaxValue = async (product_id) => {
   const [tax, fields] = await db.query(
-    `SELECT DISTINCT t.title AS text, t.value from product p LEFT JOIN tax t ON(p.tax_id = t.tax_id) WHERE p.product_id = '${product_id}' AND t.status = '1'`
+    `SELECT DISTINCT t.tax_id, t.title AS text, t.value from product p LEFT JOIN tax t ON(p.tax_id = t.tax_id) WHERE p.product_id = '${product_id}' AND t.status = '1'`
   );
 
   let taxInfo;
@@ -354,58 +394,6 @@ const getProductTaxValue = async (product_id) => {
     taxInfo = tax[0];
   }
   return taxInfo;
-};
-
-const calculateShipping = async (cartItems = []) => {
-  //flat rate
-  const flat = Settings.getSetting("shipping", "flat_status");
-  const isFlat = flat.flat_status === "1";
-  if (isFlat) {
-    const flatRate = Settings.getSetting("shipping", "flat_rate");
-    const flatValue = flatRate.flat_rate || 0;
-    return {
-      text: "flat_rate",
-      value: +flatValue,
-    };
-  }
-
-  // //By weight
-  // let cartWeight = 0;
-  // const weight = Settings.getSetting("shipping", "weight_status");
-  // const isWeight = weight && weight.value === "1";
-  // if (isWeight) {
-  //   cartWeight = calculateWeight(products);
-  //   const weightBase = Settings.getSetting("shipping", "weight_base");
-  //   const weightRate = Settings.getSetting("shipping", "weight_rate");
-  //   const baseval = weightBase ? weightBase.value : 0;
-  //   const perKiloRate = weightRate ? weightRate.value : 0;
-  //   const weightTotal = +baseval + (cartWeight / 1000) * perKiloRate;
-  //   return {
-  //     text: "weight_rate",
-  //     value: +weightTotal,
-  //   };
-  // }
-
-  //By Carriers
-  //TODO: SOAP request to Aramex, Smsa...
-  // console.log(Aramex.client.data);
-
-  // try {
-  //   const client = await soap.createClientAsync(
-  //     path.join(
-  //       __dirname,
-  //       "..",
-  //       "aramex_wsdl",
-  //       "dev-aramex-rates-calculator-wsdl.wsdl"
-  //     )
-  //   );
-  //   client.CalculateRate(args, (result, err) => {
-  //     // console.log(err);
-  //     console.log(result);
-  //   });
-  // } catch (err) {
-  //   console.log(err);
-  // }
 };
 
 const calculateWeight = (cartItems = []) => {

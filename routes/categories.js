@@ -7,9 +7,12 @@ const {
   deleteCategory,
 } = require("../controllers/categories");
 const { categorySchema } = require("../validators/category");
+const authorize = require("../middlewares/authorize");
+
+router.use(authorize("admin"));
 
 //@route    GET
-//@access   Admin
+//@access   ADMIN
 //@desc     GET All categories (with auto-complete)
 router.get("/", getAllCategories);
 

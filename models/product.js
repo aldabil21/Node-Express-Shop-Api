@@ -38,8 +38,7 @@ exports.getProduct = async (product_id, includes = fullVer) => {
   let result = product[0];
 
   if (result && result.product_id) {
-    const taxSetting = Settings.getSetting("tax", "status");
-    const calculateTax = taxSetting.status === "1";
+    const calculateTax = Settings.getSetting("tax", "status").status === "1";
     if (calculateTax) {
       result.price = Tax.calculate(result.tax_value, result.price);
       result.special = Tax.calculate(result.tax_value, result.special);

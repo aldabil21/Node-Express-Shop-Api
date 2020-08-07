@@ -17,6 +17,10 @@ exports.calculate = (taxVal = 0, price = 0) => {
   return priceWtax;
 };
 
+exports.deCalculate = (price, taxVal) => {
+  return price / (1 + taxVal / 100);
+};
+
 exports.pure = (price, taxVal) => {
   return price * (taxVal / 100);
 };

@@ -8,14 +8,10 @@ const options = {
 
 const guestId = async (req, res, next) => {
   if (!req.cookies.guest && !req.cookies.token) {
-    const random = crypto.randomBytes(256).toString("hex");
-    const guestId = crypto.createHash("sha256").update(random).digest("hex");
+    const guestId = resGuestIdCookie(res);
     req.guest = guestId;
-
-    res.cookie("guest", guestId, options);
   } else if (req.cookies.token) {
     res.clearCookie("guest");
-    // req.user = req.cookies.token;
   } else {
     req.guest = req.cookies.guest;
     res.cookie("guest", req.cookies.guest, options);
@@ -23,4 +19,13 @@ const guestId = async (req, res, next) => {
   next();
 };
 
-module.exports = guestId;
+const resGuestIdCookie = (res) => {
+  const random = crypto.randomBytes(256).toString("hex");
+  const guestId = crypto.createHash("sha256").update(random).digest("hex");
+  res.cookie("guest", guestId, options);
+  return guestId;
+};
+module.exports = {
+  guestId,
+  resGuestIdCookie,
+};

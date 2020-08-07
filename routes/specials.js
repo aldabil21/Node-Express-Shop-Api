@@ -7,6 +7,9 @@ const {
   deleteProductSpecial,
 } = require("../controllers/specials");
 const { specialSchema } = require("../validators/product_special");
+const authorize = require("../middlewares/authorize");
+
+router.use(authorize("admin"));
 
 //@route    GET
 //@access   ADMIN

@@ -1,6 +1,6 @@
 const express = require("express");
 const cookieParser = require("cookie-parser");
-const guestId = require("./middlewares/guestId");
+const { guestId } = require("./middlewares/guestId");
 const settingsLoader = require("./helpers/settings");
 const PORT = process.env.PORT || 5000;
 const { errorHandler, error404 } = require("./middlewares/error");
@@ -30,8 +30,10 @@ settingsLoader().then(() => {
   const specials = require("./routes/specials");
   const filters = require("./routes/filters");
   const categories = require("./routes/categories");
-  const settings = require("./routes/settings");
   const cart = require("./routes/cart");
+  const checkout = require("./routes/checkout");
+  const address = require("./routes/address");
+  const settings = require("./routes/settings");
 
   app.use("/api/v1/auth", auth);
   app.use("/api/v1/products", products);
@@ -39,6 +41,8 @@ settingsLoader().then(() => {
   app.use("/api/v1/filters", filters);
   app.use("/api/v1/categories", categories);
   app.use("/api/v1/cart", cart);
+  app.use("/api/v1/checkout", checkout);
+  app.use("/api/v1/address", address);
   app.use("/api/v1/config", settings);
 
   //Error handlers

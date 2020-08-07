@@ -8,6 +8,7 @@ const {
   deleteProduct,
 } = require("../controllers/product");
 const { productSchema } = require("../validators/product");
+const authorize = require("../middlewares/authorize");
 
 //@route    GET
 //@access   PUBLIC
@@ -22,16 +23,16 @@ router.get("/:id", getProduct);
 //@route    POST
 //@access   ADMIN
 //@desc     ADD Product
-router.post("/", productSchema, addProduct);
+router.post("/", authorize("admin"), productSchema, addProduct);
 
 //@route    PUT
 //@access   ADMIN
 //@desc     Update Product
-router.put("/:id", productSchema, updateProduct);
+router.put("/:id", authorize("admin"), productSchema, updateProduct);
 
 //@route    DELETE
 //@access   ADMIN
 //@desc     Delete Product by ID
-router.delete("/:id", deleteProduct);
+router.delete("/:id", authorize("admin"), deleteProduct);
 
 module.exports = router;
