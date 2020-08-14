@@ -37,7 +37,7 @@ exports.getProduct = async (product_id, includes = fullVer) => {
   //     i18next.t("product:product_not_found", { product: product_id })
   //   );
   // }
-  console.log(product);
+
   let result = product[0];
 
   if (result && result.product_id) {
@@ -47,6 +47,11 @@ exports.getProduct = async (product_id, includes = fullVer) => {
       result.price = Tax.calculate(result.tax_value, result.price);
       result.special = Tax.calculate(result.tax_value, result.special);
     }
+
+    //Currency
+    const currConfig = Settings.getSetting("config", "currency").currency;
+    const currency = i18next.t(`common:${currConfig}`);
+    result.currency = currency || "";
 
     if (includes.includes("categories")) {
       //get categories
@@ -89,7 +94,7 @@ exports.getProduct = async (product_id, includes = fullVer) => {
     if (result.coupon_code) {
       let type = "%";
       if (result.coupon_type === "F") {
-        // type = currency; //TODO
+        type = currency;
       }
       coupon = `${i18next.t("common:discount")} ${
         result.coupon_amount
@@ -190,12 +195,16 @@ exports.getProducts = async (filters) => {
       //get filters
       const filters = await this.getProductFilters(product.product_id);
 
+      //Currency
+      const currConfig = Settings.getSetting("config", "currency").currency;
+      const currency = i18next.t(`common:${currConfig}`);
+
       //Coupon info
       let coupon = "";
       if (product.coupon_code) {
         let type = "%";
         if (product.coupon_type === "F") {
-          // type = currency; //TODO
+          type = currency;
         }
         coupon = `${i18next.t("common:discount")} ${
           product.coupon_amount
@@ -208,6 +217,7 @@ exports.getProducts = async (filters) => {
         image: product.image,
         price: +price,
         special: +special,
+        currency: currency || "",
         coupon,
         points: product.points,
         available_at: product.available_at,

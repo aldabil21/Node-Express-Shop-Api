@@ -1,6 +1,7 @@
 const Checkout = require("../models/checkout");
 const Cart = require("../models/cart");
 const Coupon = require("../models/coupon");
+const Point = require("../models/point");
 const Address = require("../models/address");
 const Settings = require("../models/settings");
 const ErrorResponse = require("../helpers/error");
@@ -85,11 +86,11 @@ exports.getCheckout = async (req, res, next) => {
 
 //@route    PATCH
 //@access   PROTECTED
-//@desc     Add coupon or points to totals
-exports.addCoupunPoints = async (req, res, next) => {
+//@desc     Add coupon discount to totals
+exports.addCouponDiscount = async (req, res, next) => {
   try {
     const user_id = req.user;
-    const { coupon, points } = req.body;
+    const { coupon } = req.body;
 
     ErrorResponse.validateRequest(req);
 
@@ -102,7 +103,6 @@ exports.addCoupunPoints = async (req, res, next) => {
       order_id: order.order_id,
       user_id,
       code: coupon,
-      points,
     };
 
     //Validate coupon => redeem
@@ -112,26 +112,80 @@ exports.addCoupunPoints = async (req, res, next) => {
       if (!couponResult.valid) {
         throw new ErrorResponse(400, couponResult.message);
       }
-      existCoupon = {
-        title: couponResult.couponInfo.title,
-        code: couponResult.couponInfo.code,
-        notice: i18next.t("cart:congrats_coupon", {
-          code: couponResult.couponInfo.code,
-        }),
-      };
       data.coupon = couponResult.couponInfo;
-      await Checkout.RedeemCoupon(data);
-    }
 
-    //TODO: Validate points => redeem
-    let existPoints;
+      const redeemed = await Checkout.redeemCoupon(data);
+      if (redeemed.value) {
+        existCoupon = {
+          title: couponResult.couponInfo.title,
+          code: couponResult.couponInfo.code,
+          notice: i18next.t("cart:congrats_coupon", {
+            code: couponResult.couponInfo.code,
+          }),
+        };
+      }
+    } else {
+      //Remove coupon
+      await Checkout.clearCoupon(data.order_id);
+    }
 
     //Get final order totals
     const totals = await Checkout.getTotals(data.order_id);
 
     res.status(200).json({
       success: true,
-      data: { coupon: existCoupon, points: existPoints, totals },
+      data: { coupon: existCoupon, totals },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+//@route    PATCH
+//@access   PROTECTED
+//@desc     Add points discount to totals
+exports.addPointsDiscount = async (req, res, next) => {
+  try {
+    const user_id = req.user;
+    const { points } = req.body;
+
+    ErrorResponse.validateRequest(req);
+
+    //Get user current order
+    const order = await Checkout.getUncompleteOrder({ user_id });
+    if (!order) {
+      throw new ErrorResponse(400, i18next.t("cart:order_not_found_try_again"));
+    }
+    const data = {
+      order_id: order.order_id,
+      user_id,
+      points,
+    };
+
+    //Validate points => redeem
+    let existPoints;
+    if (points) {
+      const pointsResult = await Point.validate(data);
+      if (!pointsResult.valid) {
+        throw new ErrorResponse(400, pointsResult.message);
+      }
+      const redeemed = await Checkout.redeemPoints(data);
+      if (redeemed.value) {
+        existPoints = {
+          total: points,
+          notice: i18next.t("cart:congrats_points", { total: redeemed.value }),
+        };
+      }
+    } else {
+      await Checkout.clearPoints(data.order_id);
+    }
+
+    //Get final order totals
+    const totals = await Checkout.getTotals(data.order_id);
+
+    res.status(200).json({
+      success: true,
+      data: { points: existPoints, totals },
     });
   } catch (err) {
     next(err);

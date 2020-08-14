@@ -1,4 +1,4 @@
-const { checkSchema } = require("express-validator");
+const { checkSchema, body } = require("express-validator");
 const Settings = require("../models/settings");
 const Address = require("../models/address");
 const i18next = require("../i18next");
@@ -12,27 +12,18 @@ const paymentIsAvailable = (code) => {
   return true;
 };
 
-exports.CPValidator = checkSchema({
-  coupon: {
-    in: ["body"],
-    trim: true,
-    isLength: {
-      errorMessage: i18next.t("cart:coupon_wrong_form"),
-      options: { max: 20 },
-    },
-  },
-  points: {
-    in: ["body"],
-    toInt: true,
-    isLength: {
-      errorMessage: i18next.t("cart:coupon_wrong_form"),
-      options: { max: 20 },
-    },
-    customSanitizer: {
-      options: (value) => value || 0,
-    },
-  },
-});
+exports.couponValidator = [
+  body("coupon", i18next.t("cart:coupon_wrong_form"))
+    .trim()
+    .isLength({ max: 20 }),
+];
+exports.pointsValidator = [
+  body("points", i18next.t("cart:points_wrong_form"))
+    .trim()
+    .isLength({ max: 20 })
+    .toInt()
+    .customSanitizer((value) => (value && +value > 0 ? value : 0)),
+];
 
 exports.checkoutValidator = checkSchema({
   address_id: {

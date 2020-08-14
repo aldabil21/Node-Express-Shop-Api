@@ -84,6 +84,7 @@ exports.getCart = async (data) => {
         price: price,
         tax_value: productInfo.tax_value,
         special: special,
+        currency: productInfo.currency,
         option: option,
       };
 
@@ -166,8 +167,13 @@ exports.getTotals = async (cartItems = []) => {
   const shipping = this.calculateShipping(cartItems);
   brutto.value += shipping.value;
 
+  //Currency
+  const currConfig = Settings.getSetting("config", "currency").currency;
+  const curr = i18next.t(`common:${currConfig}`);
+  const currency = curr || "";
+
   totals = [neto, ...taxes, shipping, brutto].map((t) => {
-    return { ...t, value: +t.value.toFixed(2) };
+    return { ...t, value: +t.value.toFixed(2), currency };
   });
 
   return totals;

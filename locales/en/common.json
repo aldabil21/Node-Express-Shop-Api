@@ -7,5 +7,6 @@
   "not_found": "Resource {{id}} Not Found...",
   "add_error": "Uncommon Error: Contact Your Administrator.",
   "discount": "Discount",
-  "use_coupon": "coupon"
+  "use_coupon": "coupon",
+  "sar": "SAR"
 }

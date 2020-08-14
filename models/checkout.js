@@ -2,6 +2,7 @@ const db = require("../config/db");
 const Cart = require("./cart");
 const Address = require("./address");
 const Coupon = require("./coupon");
+const Point = require("./point");
 const Settings = require("./settings");
 const Tax = require("./tax");
 const i18next = require("../i18next");
@@ -17,34 +18,56 @@ exports.getCheckout = async (data) => {
 
   let notice = "";
   let coupon;
-  //Validate order_total COUPON if order left-over then resumed
-  const [unUsedCoupon, _uc] = await db.query(
-    `SELECT text from order_totals WHERE order_id = ${order_id} AND code = 'coupon'`
+  let points;
+  //Validate order_total COUPON/POINTS if order left-over then resumed
+  const [unUsedDiscount, _uc] = await db.query(
+    `SELECT * from order_totals WHERE order_id = ${order_id} AND code = 'coupon' OR code = 'points'`
   );
-  if (unUsedCoupon.length) {
-    const couponText = unUsedCoupon[0].text;
-    const code = couponText.split(":")[1].split("(")[0];
-    const data = {
-      code: code ? code.trim() : "",
-      user_id,
-      order_id,
-      orderProducts: products,
-    };
-    const couponVal = await Coupon.validate(data);
-    if (!couponVal.valid) {
-      notice = couponVal.message;
-      await this.clearCoupon(order_id);
-    } else {
-      const code = couponVal.couponInfo.code;
-      coupon = {
-        title: couponVal.couponInfo.title,
-        code: code,
-        notice: i18next.t("cart:congrats_coupon", { code }),
+
+  for (const discount of unUsedDiscount) {
+    //validate coupon if still valid
+    if (discount.code === "coupon") {
+      const couponText = discount.text;
+      const code = couponText.split(":")[1].split("(")[0];
+      const data = {
+        code: code ? code.trim() : "",
+        user_id,
+        order_id,
+        orderProducts: products,
       };
+      const couponVal = await Coupon.validate(data);
+      if (!couponVal.valid) {
+        notice = couponVal.message;
+        await this.clearCoupon(order_id);
+      } else {
+        const code = couponVal.couponInfo.code;
+        coupon = {
+          title: couponVal.couponInfo.title,
+          code: code,
+          notice: i18next.t("cart:congrats_coupon", { code }),
+        };
+      }
+    }
+    //validate points if suffecient
+    if (discount.code === "points") {
+      const pointsText = discount.text;
+      const pointsTotal = pointsText.split(":")[1];
+      const data = {
+        points: pointsTotal ? +pointsTotal.trim() : 0,
+        user_id,
+      };
+      const pointsVali = await Point.validate(data);
+      if (!pointsVali.valid) {
+        notice = pointsVali.message;
+        await this.clearPoints(order_id);
+      } else {
+        points = {
+          total: +pointsTotal,
+          notice: i18next.t("cart:congrats_points", { total: pointsTotal }),
+        };
+      }
     }
   }
-
-  //TODO validate points if suffecient
 
   const totals = await this.getTotals(order_id);
 
@@ -239,48 +262,16 @@ exports.getUncompleteOrder = async (data) => {
   return order;
 };
 
-exports.RedeemCoupon = withTransaction(async (transaction, data) => {
-  const { code, user_id, order_id, coupon } = data;
-
-  //Calculate coupon according to type + Get rid of prev coupon if exist
-  const [deleteOldCoup, _d] = await transaction.query(
-    `DELETE FROM order_totals WHERE order_id = '${order_id}' AND code = 'coupon'`
-  );
-  const [total, _t] = await transaction.query(`
-    SELECT value from order_totals WHERE order_id = '${order_id}' AND code = 'brutto'
-    `);
-  const brutto = total[0].value;
-  let discountVal = 0;
-  let typeNotation = "";
-  if (coupon.type === "P") {
-    discountVal = (brutto * coupon.amount) / 100;
-    typeNotation = "%";
-  } else {
-    discountVal = coupon.amount;
-    // typeNotation = currency //TODO
-  }
-  const couponInfo = {
-    order_id,
-    text: `${i18next.t("cart:coupon_discount")}: ${code} (${
-      coupon.amount
-    } ${typeNotation})`,
-    code: "coupon",
-    value: -discountVal,
-    sort_order: 4,
-  };
-
-  await transaction.query(`INSERT INTO order_totals SET ?`, couponInfo);
-
-  await transaction.commit();
-
-  return { code: code, value: discountVal };
-});
-
 exports.getProducts = async (order_id) => {
   const [query, _p] = await db.query(
     `SELECT * FROM order_products WHERE order_id = '${order_id}'
     `
   );
+
+  //Currency
+  const currConfig = Settings.getSetting("config", "currency").currency;
+  const curr = i18next.t(`common:${currConfig}`);
+  const currency = curr || "";
 
   const products = query.map((prod) => {
     return {
@@ -291,6 +282,7 @@ exports.getProducts = async (order_id) => {
       price: +prod.price,
       total: +prod.total,
       tax: +prod.tax,
+      currency,
     };
   });
 
@@ -316,21 +308,125 @@ exports.getTotals = async (order_id) => {
   const hasCoupon = coupon < 0;
   const hasPoints = points < 0;
 
+  //Currency
+  const currConfig = Settings.getSetting("config", "currency").currency;
+  const curr = i18next.t(`common:${currConfig}`);
+  const currency = curr || "";
+
   if (hasCoupon || hasPoints) {
     totals = query.map((t) =>
       t.code === "brutto"
-        ? { ...t, value: +parseFloat(+t.value + coupon + points).toFixed(2) }
-        : { ...t, value: +t.value }
+        ? {
+            ...t,
+            value: +parseFloat(+t.value + coupon + points).toFixed(2),
+            currency,
+          }
+        : { ...t, value: +t.value, currency }
     );
   } else {
     totals = query.map((t) => {
-      return { ...t, value: +t.value };
+      return { ...t, value: +t.value, currency };
     });
   }
 
   return totals;
 };
 
+exports.redeemCoupon = withTransaction(async (transaction, data) => {
+  const { code, user_id, order_id, coupon } = data;
+
+  //Calculate coupon according to type + Get rid of prev coupon if exist
+  const [deleteOldCoup, _d] = await transaction.query(
+    `DELETE FROM order_totals WHERE order_id = '${order_id}' AND code = 'coupon'`
+  );
+  const [total, _t] = await transaction.query(`
+    SELECT SUM(value) AS value from order_totals WHERE order_id = '${order_id}' AND code = 'brutto' OR code = 'points'
+    `);
+  const brutto = total[0].value;
+  let discountVal = 0;
+  let typeNotation = "";
+  if (coupon.type === "P") {
+    discountVal = (brutto * coupon.amount) / 100;
+    typeNotation = "%";
+  } else {
+    //Currency
+    const currConfig = Settings.getSetting("config", "currency").currency;
+    const curr = i18next.t(`common:${currConfig}`);
+    const currency = curr || "";
+    discountVal = coupon.amount;
+    typeNotation = currency;
+
+    //If was below zero (maybe with using some points), turn it to 0
+    if (brutto - discountVal < 0) {
+      discountVal = brutto;
+    }
+  }
+  const couponInfo = {
+    order_id,
+    text: `${i18next.t("cart:coupon_discount")}: ${code} (${
+      coupon.amount
+    } ${typeNotation})`,
+    code: "coupon",
+    value: -discountVal,
+    sort_order: 4,
+  };
+
+  await transaction.query(`INSERT INTO order_totals SET ?`, couponInfo);
+
+  await transaction.commit();
+
+  return { code: code, value: discountVal };
+});
+
+exports.redeemPoints = withTransaction(async (transaction, data) => {
+  const { points, user_id, order_id } = data;
+
+  //Calculate points + Get rid of old one
+  const [deleteOldpoints, _d] = await transaction.query(
+    `DELETE FROM order_totals WHERE order_id = '${order_id}' AND code = 'points'`
+  );
+
+  const [total, _t] = await transaction.query(`
+    SELECT SUM(value) AS value from order_totals WHERE order_id = '${order_id}' AND code = 'brutto' OR code = 'coupon'
+  `);
+
+  const brutto = +total[0].value;
+
+  //Calculate discount value
+  const pricePerPoint = Settings.getSetting("config", "points_value")
+    .points_value;
+
+  let discountVal = +pricePerPoint * points;
+
+  //Check if redeemed points is more than order total (avoid minus totals/zero totals)
+  const max = Settings.getSetting("config", "points_max_percentage");
+  const maxPercentage = +max.points_max_percentage || 100;
+  const maxAllowed = brutto * (maxPercentage / 100);
+
+  if (discountVal > maxAllowed) {
+    const pointsVal = Settings.getSetting("config", "points_value")
+      .points_value;
+    const maxPoints = Math.floor(maxAllowed / pointsVal);
+    throw new ErrorResponse(
+      422,
+      `${i18next.t("cart:points_max_allowed", { points: maxPoints })}`
+    );
+  }
+
+  const pointsInfo = {
+    order_id,
+    text: `${i18next.t("cart:points_discount")}: ${points}`,
+    code: "points",
+    value: -discountVal,
+    sort_order: 4,
+  };
+
+  await transaction.query(`INSERT INTO order_totals SET ?`, pointsInfo);
+
+  await transaction.commit();
+
+  return { value: discountVal };
+});
 exports.clearOrder = async (order_id) => {
   const [query, fields] = await db.query(
     `DELETE op.*,ot.* FROM order_products op LEFT JOIN order_totals ot ON(op.order_id = ot.order_id) WHERE op.order_id = '${order_id}'`
@@ -346,6 +442,17 @@ exports.clearOrder = async (order_id) => {
 exports.clearCoupon = async (order_id) => {
   const [query, fields] = await db.query(
     `DELETE FROM order_totals WHERE order_id = '${order_id}' AND code = 'coupon'`
+  );
+
+  if (!query.affectedRows) {
+    return false;
+  }
+
+  return true;
+};
+exports.clearPoints = async (order_id) => {
+  const [query, fields] = await db.query(
+    `DELETE FROM order_totals WHERE order_id = '${order_id}' AND code = 'points'`
   );
 
   if (!query.affectedRows) {

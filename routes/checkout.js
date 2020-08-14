@@ -2,11 +2,16 @@ const express = require("express");
 const router = express.Router();
 const {
   getCheckout,
-  addCoupunPoints,
+  addCouponDiscount,
+  addPointsDiscount,
   // editCartItem,
   // deleteCartItem,
 } = require("../controllers/checkout");
-const { checkoutValidator, CPValidator } = require("../validators/checkout");
+const {
+  checkoutValidator,
+  couponValidator,
+  pointsValidator,
+} = require("../validators/checkout");
 
 const protected = require("../middlewares/protected");
 
@@ -19,8 +24,13 @@ router.get("/", getCheckout);
 
 //@route    PATCH
 //@access   PROTECTED
-//@desc     Add coupon or points to totals
-router.patch("/", CPValidator, addCoupunPoints);
+//@desc     Add coupon discount to totals
+router.patch("/coupon", couponValidator, addCouponDiscount);
+
+//@route    PATCH
+//@access   PROTECTED
+//@desc     Add points discount to totals
+router.patch("/points", pointsValidator, addPointsDiscount);
 
 // //@route    PUT
 // //@access   PROTECTED
