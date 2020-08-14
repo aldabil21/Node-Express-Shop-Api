@@ -40,9 +40,10 @@ exports.addToCart = async (req, res, next) => {
 
     ErrorResponse.validateRequest(req);
 
-    const item = await Cart.add(data);
+    const cartItems = await Cart.add(data);
+    const totals = await Cart.getTotals(cartItems.products);
 
-    res.status(200).json({ success: true, data: item });
+    res.status(200).json({ success: true, data: { ...cartItems, totals } });
   } catch (err) {
     next(err);
   }
@@ -65,8 +66,9 @@ exports.editCartItem = async (req, res, next) => {
       user_id,
     };
     ErrorResponse.validateRequest(req);
-    const updatedCart = await Cart.edit(data);
-    res.status(200).json({ success: true, data: updatedCart });
+    const cartItems = await Cart.edit(data);
+    const totals = await Cart.getTotals(cartItems.products);
+    res.status(200).json({ success: true, data: { ...cartItems, totals } });
   } catch (err) {
     next(err);
   }

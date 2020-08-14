@@ -5,6 +5,16 @@ const Tax = require("./tax");
 const i18next = require("../i18next");
 const ErrorResponse = require("../helpers/error");
 
+exports.hasCart = async (data) => {
+  const { user_id } = data;
+  let sql = `SELECT COUNT(*) AS total from cart WHERE user_id = '${user_id}'`;
+  const [cart, fields] = await db.query(sql);
+
+  const { total } = cart[0];
+
+  return total > 0;
+};
+
 exports.getCart = async (data) => {
   const { user_id } = data;
 
@@ -23,7 +33,7 @@ exports.getCart = async (data) => {
       ]);
 
       if (!productInfo || item.quantity > productInfo.quantity) {
-        //product was deleted or disabled, omit from cart
+        //product or product_category was deleted or disabled, omit from cart
         cartChangedNotice = i18next.t("cart:cart_changed_notice");
         //delete cart item silently
         this.delete({ id: item.item_id, user_id });
@@ -90,19 +100,27 @@ exports.getCart = async (data) => {
 };
 
 exports.getTotals = async (cartItems = []) => {
+  //empty cart return []
+  if (!cartItems.length) {
+    return [];
+  }
+
   // Get cart totals
-  const withTax = Settings.getSetting("tax", "status").status === "1";
+  const withTax =
+    Settings.getSetting("config", "tax_status").tax_status === "1";
 
   let neto = {
     id: "neto",
     text: i18next.t("common:neto"),
     value: 0,
+    sort_order: 1,
   };
   let taxes = [];
   let brutto = {
     id: "brutto",
     text: i18next.t("common:brutto"),
     value: 0,
+    sort_order: 9,
   };
   let totals = [];
   for (const prod of cartItems) {
@@ -111,7 +129,7 @@ exports.getTotals = async (cartItems = []) => {
     if (withTax) {
       //Deduct tax from product price if it was included (if tax setting was enabled), for correct neto/tax calculation
       //It was decied to always show detail prices in all interefaces (cart, checkout, order)
-      thisPrice = Tax.deCalculate(thisPrice, prod.tax_value).toFixed(2);
+      thisPrice = Tax.deCalculate(thisPrice, prod.tax_value);
     }
 
     //Neto
@@ -126,9 +144,11 @@ exports.getTotals = async (cartItems = []) => {
       if (existTax < 0) {
         //Add new tax type
         taxes.push({
+          id: "tax",
           tax_id: tax.tax_id,
           text: tax.text,
           value: thisTax,
+          sort_order: 2,
         });
       } else {
         //Sum same tax type
@@ -146,7 +166,9 @@ exports.getTotals = async (cartItems = []) => {
   const shipping = this.calculateShipping(cartItems);
   brutto.value += shipping.value;
 
-  totals = [neto, ...taxes, shipping, brutto];
+  totals = [neto, ...taxes, shipping, brutto].map((t) => {
+    return { ...t, value: +t.value.toFixed(2) };
+  });
 
   return totals;
 };
@@ -156,8 +178,10 @@ exports.calculateShipping = (cartItems = []) => {
 
   if (!withShipping) {
     return {
+      id: "shipping",
       text: i18next.t("common:free_shipping"),
       value: 0,
+      sort_order: 3,
     };
   }
 
@@ -168,8 +192,10 @@ exports.calculateShipping = (cartItems = []) => {
     const flatRate = Settings.getSetting("shipping", "flat_rate");
     const flatValue = flatRate.flat_rate || 0;
     return {
-      text: "flat_rate",
+      id: "shipping",
+      text: i18next.t("common:flat_rate"),
       value: +flatValue,
+      sort_order: 3,
     };
   }
 
@@ -178,21 +204,24 @@ exports.calculateShipping = (cartItems = []) => {
   const isWeight =
     Settings.getSetting("shipping", "weight_status").weight_status === "1";
   if (isWeight) {
-    cartWeight = calculateWeight(cartItems);
+    cartWeight = calculateWeight(cartItems, "KG");
     const weightBase = Settings.getSetting("shipping", "weight_base_amount")
       .weight_base_amount;
-    const weightRate = Settings.getSetting("shipping", "weight_per_kg_amount")
-      .weight_per_kg_amount;
+    const weightRate = Settings.getSetting("shipping", "weight_kg_amount")
+      .weight_kg_amount;
     const baseval = weightBase || 0;
     const perKiloRate = weightRate || 0;
-    const weightTotal = +baseval + (cartWeight / 1000) * perKiloRate;
+    const weightTotal = +baseval + cartWeight * perKiloRate;
     return {
-      text: "weight_rate",
+      id: "shipping",
+      text: i18next.t("common:weight_rate", { weight: cartWeight.toFixed(2) }),
       value: +weightTotal,
+      sort_order: 3,
     };
   }
 
   return {
+    id: "shipping",
     text: i18next.t("common:free_shipping"),
     value: 0,
   };
@@ -396,11 +425,15 @@ const getProductTaxValue = async (product_id) => {
   return taxInfo;
 };
 
-const calculateWeight = (cartItems = []) => {
-  let weight = 0;
+const calculateWeight = (cartItems = [], unit = "g") => {
+  let gram_weight = 0;
   cartItems.forEach((prod) => {
-    weight += +prod.weight;
+    gram_weight += +prod.weight;
   });
 
-  return weight;
+  if (unit === "g") {
+    return gram_weight;
+  }
+  const kg_weight = gram_weight / 1000;
+  return kg_weight;
 };

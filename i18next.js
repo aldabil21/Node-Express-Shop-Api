@@ -14,7 +14,7 @@ i18next
     backend: {
       loadPath: "locales/{{lng}}/{{ns}}.json",
     },
-    ns: ["common", "product"],
+    ns: ["common", "product", "cart"],
     defaultNS: ["common"],
     // interpolation: {
     //   escapeValue: false, //careful XSS

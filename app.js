@@ -30,6 +30,7 @@ settingsLoader().then(() => {
   const specials = require("./routes/specials");
   const filters = require("./routes/filters");
   const categories = require("./routes/categories");
+  const coupon = require("./routes/coupon");
   const cart = require("./routes/cart");
   const checkout = require("./routes/checkout");
   const address = require("./routes/address");
@@ -40,6 +41,7 @@ settingsLoader().then(() => {
   app.use("/api/v1/products", specials);
   app.use("/api/v1/filters", filters);
   app.use("/api/v1/categories", categories);
+  app.use("/api/v1/coupon", coupon);
   app.use("/api/v1/cart", cart);
   app.use("/api/v1/checkout", checkout);
   app.use("/api/v1/address", address);

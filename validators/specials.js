@@ -26,8 +26,8 @@ exports.specialSchema = checkSchema({
         if (value <= 0) {
           throw new ErrorResponse(422, "Must be greater than 0");
         }
-        const product = await Product.findOneProduct(req.params.product_id);
-        if (parseFloat(product.price) <= value) {
+        const product = await Product.findOne(req.params.product_id);
+        if (product && parseFloat(product.price) <= value) {
           throw new ErrorResponse(
             422,
             i18next.t("product:special_gt_price", {

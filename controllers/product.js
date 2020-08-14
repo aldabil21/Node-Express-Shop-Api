@@ -38,6 +38,7 @@ exports.getProducts = async (req, res, next) => {
     perPage = 20,
     sort = "view",
     direction = "DESC",
+    q = "",
   } = req.query;
 
   const filters = {
@@ -49,6 +50,7 @@ exports.getProducts = async (req, res, next) => {
     perPage,
     sort,
     direction,
+    q,
   };
 
   try {

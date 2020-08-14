@@ -14,11 +14,12 @@ exports.calculateAsync = async (tax_id = 0, price = 0) => {
 
 exports.calculate = (taxVal = 0, price = 0) => {
   const priceWtax = +price + +price * (taxVal / 100);
-  return priceWtax;
+  return +priceWtax.toFixed(2);
 };
 
 exports.deCalculate = (price, taxVal) => {
-  return price / (1 + taxVal / 100);
+  const preTaxPrice = price / (1 + taxVal / 100);
+  return preTaxPrice.toFixed(2);
 };
 
 exports.pure = (price, taxVal) => {

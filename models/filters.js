@@ -56,13 +56,22 @@ exports.getFilter = async (filter_id, withChildren = true) => {
   LEFT JOIN filter_description fd ON(f.filter_id = fd.filter_id)
   WHERE f.filter_id ='${filter_id}' AND fd.language = '${reqLanguage}'
   `;
-  const [filter, fields] = await db.query(sql);
+  const [query, fields] = await db.query(sql);
 
-  if (filter.length && withChildren) {
-    this.getChildFilters(filter.filter_id);
+  let filter;
+  let parent;
+  let children;
+  if (query.length && withChildren) {
+    parent = query[0];
+    children = await this.getChildFilters(filter_id);
   }
 
-  return filter[0];
+  filter = {
+    ...parent,
+    children,
+  };
+
+  return filter;
 };
 
 exports.addFilter = withTransaction(async (transaction, body) => {

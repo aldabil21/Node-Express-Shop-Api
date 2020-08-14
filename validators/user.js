@@ -37,6 +37,7 @@ exports.userSchema = checkSchema({
     },
   },
   mobile: {
+    trim: true,
     isMobilePhone: true,
     errorMessage: i18next.t("common:invalid_mobile"),
   },

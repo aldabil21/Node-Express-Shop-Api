@@ -3,7 +3,7 @@ const router = express.Router();
 const setting = require("../controllers/settings");
 const authorize = require("../middlewares/authorize");
 
-router.use(authorize("admin"));
+// router.use(authorize("admin"));
 
 //@route    POST
 //@access   ADMIN

@@ -14,6 +14,7 @@ const languegeSetter = (req, res, next) => {
     secure: process.env.NODE_ENV === "production",
   });
   global.reqLanguage = detectedLng;
+  i18next.changeLanguage(reqLanguage);
   next();
 };
 

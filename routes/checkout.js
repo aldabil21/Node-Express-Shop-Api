@@ -2,11 +2,11 @@ const express = require("express");
 const router = express.Router();
 const {
   getCheckout,
-  // addToCart,
+  addCoupunPoints,
   // editCartItem,
   // deleteCartItem,
 } = require("../controllers/checkout");
-// const { cartSchema } = require("../validators/cart");
+const { checkoutValidator, CPValidator } = require("../validators/checkout");
 
 const protected = require("../middlewares/protected");
 
@@ -14,16 +14,16 @@ router.use(protected);
 
 //@route    GET
 //@access   PROTECTED
-//@desc     Prepare order
+//@desc     Prepare order (Add/Update) order form user cart and get checkout
 router.get("/", getCheckout);
 
-// //@route    POST
-// //@access   PUBLIC
-// //@desc     Add to cart
-// router.post("/", cartSchema, addToCart);
+//@route    PATCH
+//@access   PROTECTED
+//@desc     Add coupon or points to totals
+router.patch("/", CPValidator, addCoupunPoints);
 
 // //@route    PUT
-// //@access   PUBLIC
+// //@access   PROTECTED
 // //@desc     Edit cart item
 // router.put("/:id", cartSchema, editCartItem);
 

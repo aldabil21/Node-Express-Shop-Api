@@ -17,13 +17,16 @@ const shortVer = ["categories", "filters"];
 exports.getProduct = async (product_id, includes = fullVer) => {
   let sql = `SELECT p.product_id, p.quantity, p.image, p.price, ps.price AS special, p.points, p.tax_id, t.value AS tax_value,
               p.available_at, p.view, p.sold, p.weight, pd.title, pd.description, pd.tags, pd.meta_title, pd.meta_description, pd.meta_keywords,
-              p.minimum, p.maximum FROM product p
+              p.minimum, p.maximum, c.code AS coupon_code, c.amount AS coupon_amount, c.type AS coupon_type FROM product p
               LEFT JOIN product_category pc ON(pc.product_id = p.product_id)
               LEFT JOIN category cat ON(pc.category_id = cat.category_id)
               LEFT JOIN product_description pd ON(p.product_id = pd.product_id)
               LEFT JOIN product_special ps ON(p.product_id = ps.product_id AND ps.deadline > NOW() AND ps.status = '1')
               LEFT JOIN tax t ON(p.tax_id = t.tax_id AND t.status = '1')
-              WHERE p.product_id = '${product_id}' AND pd.language = '${reqLanguage}' AND p.status = '1' AND cat.status = '1' ORDER BY ps.price
+              LEFT JOIN coupon_product cp ON(cp.product_id = p.product_id)
+              LEFT JOIN coupon_category cc ON(cc.category_id = pc.category_id)
+              LEFT JOIN coupon c ON(c.coupon_id = cp.coupon_id OR cc.coupon_id = c.coupon_id AND c.status = '1' AND c.date_start < NOW() AND c.date_end > NOW())
+              WHERE p.product_id = '${product_id}' AND pd.language = '${reqLanguage}' AND p.status = '1' AND cat.status = '1' ORDER BY ps.price, -c.amount
               `;
 
   const [product, _] = await db.query(sql);
@@ -34,11 +37,12 @@ exports.getProduct = async (product_id, includes = fullVer) => {
   //     i18next.t("product:product_not_found", { product: product_id })
   //   );
   // }
-
+  console.log(product);
   let result = product[0];
 
   if (result && result.product_id) {
-    const calculateTax = Settings.getSetting("tax", "status").status === "1";
+    const calculateTax =
+      Settings.getSetting("config", "tax_status").tax_status === "1";
     if (calculateTax) {
       result.price = Tax.calculate(result.tax_value, result.price);
       result.special = Tax.calculate(result.tax_value, result.special);
@@ -79,27 +83,56 @@ exports.getProduct = async (product_id, includes = fullVer) => {
       const filters = await this.getProductFilters(result.product_id);
       result.filters = filters;
     }
+
+    //Coupon info
+    let coupon = "";
+    if (result.coupon_code) {
+      let type = "%";
+      if (result.coupon_type === "F") {
+        // type = currency; //TODO
+      }
+      coupon = `${i18next.t("common:discount")} ${
+        result.coupon_amount
+      }${type} - ${i18next.t("common:use_coupon")}: ${result.coupon_code} `;
+    }
+    result.coupon = coupon;
+    delete result.coupon_code;
+    delete result.coupon_amount;
+    delete result.coupon_type;
   }
 
   return result;
 };
 
 exports.getProducts = async (filters) => {
-  const { category, filter, special, page, perPage, sort, direction } = filters;
+  const {
+    category,
+    filter,
+    special,
+    page,
+    perPage,
+    sort,
+    direction,
+    q,
+  } = filters;
 
   const _page = page > 0 ? page : 1;
   const _limit = perPage || 20;
   const _start = (_page - 1) * _limit;
 
   let sql = `SELECT p.product_id, p.quantity, p.image, p.price, MIN(ps.price) AS special, p.points, p.tax_id, p.available_at,
-              p.view, p.sold, pd.title, pd.description, pd.tags, pd.meta_title, pd.meta_description, pd.meta_keywords, t.value AS tax_value              
+              p.view, p.sold, pd.title, pd.description, pd.tags, pd.meta_title, pd.meta_description, pd.meta_keywords, t.value AS tax_value,
+              c.code AS coupon_code, MAX(c.amount) AS coupon_amount, c.type AS coupon_type              
               FROM product p
               LEFT JOIN product_description pd ON(p.product_id = pd.product_id)
               LEFT JOIN product_category pc ON(p.product_id = pc.product_id)
               INNER JOIN category cat ON(pc.category_id = cat.category_id AND cat.status = '1')
               LEFT JOIN product_filter pf ON(p.product_id = pf.product_id)
-              LEFT JOIN product_special ps ON(p.product_id = ps.product_id)
+              LEFT JOIN product_special ps ON(p.product_id = ps.product_id AND ps.deadline > NOW() AND ps.status = '1' AND ps.price > 0)
               LEFT JOIN tax t ON(p.tax_id = t.tax_id AND t.status = '1')
+              LEFT JOIN coupon_product cp ON(cp.product_id = p.product_id)
+              LEFT JOIN coupon_category cc ON(cc.category_id = pc.category_id)
+              LEFT JOIN coupon c ON(c.coupon_id = cp.coupon_id OR cc.coupon_id = c.coupon_id AND c.status = '1' AND c.date_start < NOW() AND c.date_end > NOW())
               `;
 
   sql += ` WHERE p.status = '1' AND pd.language = '${reqLanguage}'`;
@@ -119,7 +152,11 @@ exports.getProducts = async (filters) => {
   }
 
   if (special) {
-    sql += ` AND ps.deadline > NOW() AND ps.status = '1' AND ps.price > 0`;
+    sql += ` AND (ps.deadline > NOW() AND ps.status = '1' AND ps.price > 0 OR c.status = '1' AND c.date_start < NOW() AND c.date_end > NOW())`;
+  }
+
+  if (q) {
+    sql += ` AND CONCAT_WS(pd.title, pd.tags, p.product_id ) LIKE '%${q}%'`;
   }
 
   sql += ` GROUP BY p.product_id`;
@@ -134,8 +171,8 @@ exports.getProducts = async (filters) => {
 
   let products = [];
   if (results.length) {
-    const taxSetting = Settings.getSetting("tax", "status");
-    const calculateTax = taxSetting && taxSetting.value === "1";
+    const calculateTax =
+      Settings.getSetting("config", "tax_status").tax_status === "1";
 
     for (let product of results) {
       let price = product.price;
@@ -153,12 +190,25 @@ exports.getProducts = async (filters) => {
       //get filters
       const filters = await this.getProductFilters(product.product_id);
 
+      //Coupon info
+      let coupon = "";
+      if (product.coupon_code) {
+        let type = "%";
+        if (product.coupon_type === "F") {
+          // type = currency; //TODO
+        }
+        coupon = `${i18next.t("common:discount")} ${
+          product.coupon_amount
+        }${type} - ${i18next.t("common:use_coupon")}: ${product.coupon_code} `;
+      }
+
       products.push({
         product_id: product.product_id,
         quantity: product.quantity,
         image: product.image,
         price: +price,
         special: +special,
+        coupon,
         points: product.points,
         available_at: product.available_at,
         view: product.view,
@@ -174,16 +224,20 @@ exports.getProducts = async (filters) => {
 };
 
 exports.getTotalProducts = async (filters) => {
-  const { category, filter, special } = filters;
+  const { category, filter, special, q } = filters;
 
   let sql = `SELECT COUNT(DISTINCT p.product_id) as total FROM product p
+            LEFT JOIN product_description pd ON(p.product_id = pd.product_id)
             LEFT JOIN product_category pc ON(p.product_id = pc.product_id)
             INNER JOIN category cat ON(pc.category_id = cat.category_id AND cat.status = '1')
             LEFT JOIN product_filter pf ON(p.product_id = pf.product_id)
             LEFT JOIN product_special ps ON(p.product_id = ps.product_id)
+            LEFT JOIN coupon_product cp ON(cp.product_id = p.product_id)
+            LEFT JOIN coupon_category cc ON(cc.category_id = pc.category_id)
+            LEFT JOIN coupon c ON(c.coupon_id = cp.coupon_id OR cc.coupon_id = c.coupon_id)
           `;
 
-  sql += ` WHERE p.status = '1'`;
+  sql += ` WHERE p.status = '1' AND pd.language = '${reqLanguage}'`;
 
   if (category) {
     category.split(",").forEach((cat, i) => {
@@ -198,7 +252,11 @@ exports.getTotalProducts = async (filters) => {
     });
   }
   if (special) {
-    sql += ` AND ps.deadline > NOW() AND ps.status = '1' AND ps.price > 0`;
+    sql += ` AND (ps.deadline > NOW() AND ps.status = '1' AND ps.price > 0 OR c.status = '1' AND c.date_start < NOW() AND c.date_end > NOW())`;
+  }
+
+  if (q) {
+    sql += ` AND CONCAT_WS(pd.title, pd.tags, p.product_id ) LIKE '%${q}%'`;
   }
 
   const [products, _] = await db.query(sql);
@@ -456,20 +514,17 @@ exports.deleteProduct = async (product_id) => {
   return +product_id;
 };
 
-exports.findOneProduct = async (product_id) => {
-  const [product, fields] = await db.query(
+exports.findOne = async (product_id) => {
+  const [query, fields] = await db.query(
     `SELECT DISTINCT * FROM product WHERE product_id = '${product_id}'`
   );
 
-  if (!product[0]) {
-    //Not exist
-    throw new ErrorResponse(
-      404,
-      i18next.t("product:product_not_found", { product: product_id })
-    );
+  let product;
+  if (query.length) {
+    product = query[0];
   }
 
-  return product[0];
+  return product;
 };
 
 exports.getProductCategories = async (product_id) => {

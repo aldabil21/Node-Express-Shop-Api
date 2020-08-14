@@ -1,4 +1,7 @@
 {
+  "coupon_discount": "Coupon discount",
   "product_not_found": "Product {{product}} Not Found...",
-  "special_gt_price": "Special price {{special}} is not lower than original price {{price}}"
+  "special_gt_price": "Special price {{special}} is not lower than original price {{price}}",
+  "max_quantity_available": "Maximum order quantity for {{product}} is {{quantity}}",
+  "min_quantity_err": "Minimum order quantity for {{product}} is {{quantity}}"
 }

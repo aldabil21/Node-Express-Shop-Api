@@ -3,6 +3,19 @@ const withTransaction = require("../helpers/withTransaction");
 const ErrorResponse = require("../helpers/error");
 const i18next = require("../i18next");
 
+exports.getDefault = async (user_id) => {
+  let sql = `SELECT DISTINCT * FROM address WHERE user_id = '${user_id}' AND is_primary = '1'`;
+
+  const [query, fields] = await db.query(sql);
+
+  let address;
+  if (query.length) {
+    address = query[0];
+  }
+
+  return address;
+};
+
 exports.getAddress = async (id = "", user_id = "") => {
   let sql = `SELECT DISTINCT * FROM address WHERE address_id = '${id}' AND user_id = '${user_id}'`;
 
@@ -30,7 +43,7 @@ exports.add = async (data) => {
   const { lat, lng } = data;
 
   const [address, fields] = await db.query(
-    `INSERT INTO address SET point = ST_GeomFromText('POINT(${lat} ${lng})'), ?`,
+    `INSERT INTO address SET location = ST_GeomFromText('POINT(${lat} ${lng})'), ?`,
     {
       ...data,
     }

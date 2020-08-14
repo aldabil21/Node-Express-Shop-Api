@@ -19,7 +19,7 @@ exports.cartSchema = checkSchema({
     in: ["body"],
     toInt: true,
     customSanitizer: {
-      options: (value) => (value > 0 ? value : ""),
+      options: (value) => (value > 0 ? value : 0),
     },
   },
   quantity: {

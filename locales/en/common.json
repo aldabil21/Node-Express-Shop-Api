@@ -1,4 +1,11 @@
 {
+  "neto": "Net",
+  "brutto": "Total",
+  "flat_rate": "Flat Shipping Rate",
+  "weight_rate": "Shipping Rate ({{weight}} KG)",
+  "free_shipping": "Free Shipping",
   "not_found": "Resource {{id}} Not Found...",
-  "add_error": "Uncommon Error: Contact Your Administrator."
+  "add_error": "Uncommon Error: Contact Your Administrator.",
+  "discount": "Discount",
+  "use_coupon": "coupon"
 }

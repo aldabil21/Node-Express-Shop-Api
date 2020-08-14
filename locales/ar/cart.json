@@ -1,0 +1,10 @@
+{
+  "credit_cart": "الدفع بالبطاقة",
+  "cod": "الدفع عند الإستلام",
+  "coupon_discount": "خصم كوبون",
+  "congrats_coupon": "مبروك عليك خصم الكوبون ({{code}})",
+  "coupon_invalid_or_expired": "الكوبون غير صالح أو إنتهت فترته",
+  "coupon_is_not_in_category_or_product": "عذراً, الكوبون ({{code}}) غير مشمول ضمن منتجات السلة",
+  "order_total_must_gt_min": "يجب أن يكون مجموع الطلب أكبر من {{min}} لتتمكن من إستخدام هذا الكوبون",
+  "checkout_not_found_products": "لم يتم العثور على منتجات في سلتك، أو لم تعد متوفرة، تأكد من توفرها في السلة الآن"
+}

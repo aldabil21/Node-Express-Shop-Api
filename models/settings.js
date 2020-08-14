@@ -6,10 +6,15 @@ exports.loadSettings = async () => {
   return settings;
 };
 
-exports.getSetting = (code, key_id) => {
+exports.getSetting = (code, key_id = "") => {
   const setting = AppConfig.find(
     (config) => config.code === code && config.key_id === key_id
   );
+
+  if (!setting) {
+    return { key_id: 0 };
+  }
+
   const key = setting.key_id || key_id;
   const value = setting.value || null;
   return { [key]: value };

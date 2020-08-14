@@ -6,7 +6,7 @@ const {
   updateProductSpecial,
   deleteProductSpecial,
 } = require("../controllers/specials");
-const { specialSchema } = require("../validators/product_special");
+const { specialSchema } = require("../validators/specials");
 const authorize = require("../middlewares/authorize");
 
 router.use(authorize("admin"));
