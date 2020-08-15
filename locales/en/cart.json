@@ -11,5 +11,6 @@
   "coupon_invalid_or_expired": "Coupon invalid or expired",
   "coupon_is_not_in_category_or_product": "Sorry, Your order products are not qualified for the coupon ({{code}})",
   "order_total_must_gt_min": "Order total must be greater than {{min}} to enjoy this coupon",
-  "checkout_not_found_products": "No products found in your cart, perhaps it's not available anymore, checkout your cart now to make sure you have the products you want"
+  "checkout_not_found_products": "No products found in your cart, perhaps it's not available anymore, checkout your cart now to make sure you have the products you want",
+  "points_have_info": "You've a total of: {{points}} points, equals to {{total}} {{currency}}"
 }

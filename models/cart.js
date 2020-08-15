@@ -85,6 +85,7 @@ exports.getCart = async (data) => {
         tax_value: productInfo.tax_value,
         special: special,
         currency: productInfo.currency,
+        option_id: item.option_id,
         option: option,
       };
 

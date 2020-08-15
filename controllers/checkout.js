@@ -34,6 +34,7 @@ exports.getCheckout = async (req, res, next) => {
     let checkoutInfo = {
       notice: "",
       coupon: {},
+      points: {},
       products: [],
       totals: [],
     };
@@ -65,6 +66,12 @@ exports.getCheckout = async (req, res, next) => {
           status: payments[key],
         });
       }
+
+      //Get user points for display if enabled
+      const info = await Point.getInfo(user_id);
+      if (info) {
+        checkoutInfo.points = { info, ...checkoutInfo.points };
+      }
     } else {
       checkoutInfo.notice = i18next.t("cart:checkout_not_found_products");
     }
@@ -74,6 +81,7 @@ exports.getCheckout = async (req, res, next) => {
       addresses,
       payment_methods,
       coupon: checkoutInfo.coupon,
+      points: checkoutInfo.points,
       products: checkoutInfo.products,
       totals: checkoutInfo.totals,
     };
@@ -169,11 +177,15 @@ exports.addPointsDiscount = async (req, res, next) => {
       if (!pointsResult.valid) {
         throw new ErrorResponse(400, pointsResult.message);
       }
+      data.points = pointsResult.maxPoints;
+      data.discountVal = pointsResult.maxDiscount;
       const redeemed = await Checkout.redeemPoints(data);
       if (redeemed.value) {
         existPoints = {
-          total: points,
+          info: pointsResult.info,
+          value: redeemed.value,
           notice: i18next.t("cart:congrats_points", { total: redeemed.value }),
+          warning: pointsResult.message,
         };
       }
     } else {

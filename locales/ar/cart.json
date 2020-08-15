@@ -11,5 +11,6 @@
   "coupon_invalid_or_expired": "الكوبون غير صالح أو إنتهت فترته",
   "coupon_is_not_in_category_or_product": "عذراً, الكوبون ({{code}}) غير مشمول ضمن منتجات السلة",
   "order_total_must_gt_min": "يجب أن يكون مجموع الطلب أكبر من {{min}} لتتمكن من إستخدام هذا الكوبون",
-  "checkout_not_found_products": "لم يتم العثور على منتجات في سلتك، أو لم تعد متوفرة، تأكد من توفرها في السلة الآن"
+  "checkout_not_found_products": "لم يتم العثور على منتجات في سلتك، أو لم تعد متوفرة، تأكد من توفرها في السلة الآن",
+  "points_have_info": "مجموع نقاطك: {{points}}, تعادل {{total}} {{currency}}"
 }

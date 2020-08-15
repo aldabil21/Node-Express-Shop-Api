@@ -55,14 +55,16 @@ exports.getCheckout = async (data) => {
       const data = {
         points: pointsTotal ? +pointsTotal.trim() : 0,
         user_id,
+        order_id,
       };
       const pointsVali = await Point.validate(data);
-      if (!pointsVali.valid) {
+
+      if (!pointsVali.valid || +pointsVali.maxPoints !== data.points) {
         notice = pointsVali.message;
         await this.clearPoints(order_id);
       } else {
         points = {
-          total: +pointsTotal,
+          value: +pointsTotal,
           notice: i18next.t("cart:congrats_points", { total: pointsTotal }),
         };
       }
@@ -74,6 +76,7 @@ exports.getCheckout = async (data) => {
   const result = {
     notice,
     coupon,
+    points,
     products,
     totals,
   };
@@ -379,40 +382,12 @@ exports.redeemCoupon = withTransaction(async (transaction, data) => {
 });
 
 exports.redeemPoints = withTransaction(async (transaction, data) => {
-  const { points, user_id, order_id } = data;
+  const { points, discountVal, order_id } = data;
 
   //Calculate points + Get rid of old one
   const [deleteOldpoints, _d] = await transaction.query(
     `DELETE FROM order_totals WHERE order_id = '${order_id}' AND code = 'points'`
   );
-
-  const [total, _t] = await transaction.query(`
-    SELECT SUM(value) AS value from order_totals WHERE order_id = '${order_id}' AND code = 'brutto' OR code = 'coupon'
-  `);
-
-  const brutto = +total[0].value;
-
-  //Calculate discount value
-  const pricePerPoint = Settings.getSetting("config", "points_value")
-    .points_value;
-
-  let discountVal = +pricePerPoint * points;
-
-  //Check if redeemed points is more than order total (avoid minus totals/zero totals)
-  const max = Settings.getSetting("config", "points_max_percentage");
-  const maxPercentage = +max.points_max_percentage || 100;
-  const maxAllowed = brutto * (maxPercentage / 100);
-
-  if (discountVal > maxAllowed) {
-    const pointsVal = Settings.getSetting("config", "points_value")
-      .points_value;
-    const maxPoints = Math.floor(maxAllowed / pointsVal);
-    throw new ErrorResponse(
-      422,
-      `${i18next.t("cart:points_max_allowed", { points: maxPoints })}`
-    );
-  }
-
   const pointsInfo = {
     order_id,
     text: `${i18next.t("cart:points_discount")}: ${points}`,
