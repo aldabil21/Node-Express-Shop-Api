@@ -16,7 +16,7 @@ exports.getDefault = async (user_id) => {
   return address;
 };
 
-exports.getAddress = async (id = "", user_id = "") => {
+exports.getAddress = async (id, user_id) => {
   let sql = `SELECT DISTINCT * FROM address WHERE address_id = '${id}' AND user_id = '${user_id}'`;
 
   const [query, fields] = await db.query(sql);
@@ -52,18 +52,18 @@ exports.add = async (data) => {
   return this.getAddress(address.insertId, data.user_id);
 };
 
-exports.getTotalCategories = async (data) => {
-  const { q } = data;
+// exports.getTotalCategories = async (data) => {
+//   const { q } = data;
 
-  let sql = `SELECT COUNT(*) AS total from category c
-  LEFT JOIN category_description cd ON(c.category_id = cd.category_id)
-  WHERE c.parent_id ='0' AND cd.language = '${reqLanguage}' AND cd.title LIKE '%${q}%'
-  `;
+//   let sql = `SELECT COUNT(*) AS total from category c
+//   LEFT JOIN category_description cd ON(c.category_id = cd.category_id)
+//   WHERE c.parent_id ='0' AND cd.language = '${reqLanguage}' AND cd.title LIKE '%${q}%'
+//   `;
 
-  const [totals, fields] = await db.query(sql);
-  const { total } = totals[0];
-  return total;
-};
+//   const [totals, fields] = await db.query(sql);
+//   const { total } = totals[0];
+//   return total;
+// };
 
 // exports.getCategory = async (category_id, withChildren = true) => {
 //   let sql = `SELECT c.category_id, c.image, c.parent_id, c.sort_order, c.status, cd.title,

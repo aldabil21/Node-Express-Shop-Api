@@ -36,6 +36,14 @@ exports.userSchema = checkSchema({
       errorMessage: i18next.t("common:invalid_email"),
     },
   },
+  country_code: {
+    trim: true,
+    notEmpty: true,
+    isLength: {
+      options: { min: 2, max: 3 },
+    },
+    errorMessage: i18next.t("common:length_between", { min: 2, max: 4 }),
+  },
   mobile: {
     trim: true,
     isMobilePhone: true,

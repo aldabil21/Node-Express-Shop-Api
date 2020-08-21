@@ -36,6 +36,7 @@ settingsLoader().then(() => {
   const checkout = require("./routes/checkout");
   const address = require("./routes/address");
   const settings = require("./routes/settings");
+  const card = require("./routes/card");
 
   app.use("/api/v1/auth", auth);
   app.use("/api/v1/products", products);
@@ -48,6 +49,7 @@ settingsLoader().then(() => {
   app.use("/api/v1/checkout", checkout);
   app.use("/api/v1/address", address);
   app.use("/api/v1/config", settings);
+  app.use("/api/v1/card", card);
 
   //Error handlers
   app.use(error404);

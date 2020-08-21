@@ -2,16 +2,24 @@ const ErrorResponse = require("../helpers/error");
 
 exports.errorHandler = (err, req, res, next) => {
   //   console.log(err);
-  const status = err.statusCode || 500;
-  const message = err.message || "Somthing went wrong";
-  const data = err.data || {};
+  let status = err.statusCode || 500;
+  let message = err.message || "Somthing went wrong";
+  let data = err.data || {};
 
-  res.status(status).json({
+  //Axios || Tap errors
+  if (err.response && err.response.data) {
+    status = 400;
+    data = err.response.data;
+  }
+
+  const error = {
     success: false,
     statusCode: status,
     message: message,
     data: data,
-  });
+  };
+  // console.log(error);
+  res.status(status).json(error);
 };
 
 exports.error404 = (req, res, next) => {

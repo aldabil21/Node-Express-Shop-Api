@@ -6,9 +6,14 @@ const i18next = require("../i18next");
 const crypto = require("crypto");
 
 exports.register = async (data) => {
-  const { email, mobile, password } = data;
+  const { email, country_code, mobile, password } = data;
 
-  const exist = await this.findOne(email, mobile);
+  const cellphone = {
+    country_code,
+    mobile,
+  };
+
+  const exist = await this.findOne(email, cellphone);
 
   if (exist) {
     throw new ErrorResponse(
@@ -24,8 +29,13 @@ exports.register = async (data) => {
   //TODO: Send OTP to Mobile or Email... to be decided
   const otp = Math.floor(1000 + Math.random() * 9000);
 
+  //Key id
+  const keyRand = crypto.randomBytes(256).toString("hex");
+  const kid = crypto.createHash("sha256").update(keyRand).digest("hex");
+  // console.log(kid);
   const [registered, fields] = await db.query(`INSERT INTO user SET ?`, {
     ...data,
+    kid,
     password: hashedPassword,
     otp,
   });
@@ -35,7 +45,13 @@ exports.register = async (data) => {
 
 exports.confirm = async (data) => {
   const { otp, mobile, email } = data;
-  const exist = await this.findOne(email, mobile);
+
+  const cellphone = {
+    country_code,
+    mobile,
+  };
+
+  const exist = await this.findOne(email, cellphone);
 
   if (!exist) {
     throw new ErrorResponse(
@@ -67,7 +83,10 @@ exports.signin = async (data) => {
   const user = await this.findOne(email);
 
   if (!user) {
-    throw new ErrorResponse(401, i18next.t("common:invalid_credentials"));
+    throw new ErrorResponse(
+      401,
+      i18next.t("common:signin_credintials_incorrect")
+    );
   }
 
   if (user.status !== "1") {
@@ -77,7 +96,10 @@ exports.signin = async (data) => {
   const isMatch = await bcrypt.compare(password, user.password);
 
   if (!isMatch) {
-    throw new ErrorResponse(401, i18next.t("common:invalid_credentials"));
+    throw new ErrorResponse(
+      401,
+      i18next.t("common:signin_credintials_incorrect")
+    );
   }
 
   const token = await generateToken(user);
@@ -85,10 +107,22 @@ exports.signin = async (data) => {
   return { token, user_id: user.user_id };
 };
 
-exports.findOne = async (email = "", mobile = "") => {
-  const [user, fields] = await db.query(
-    `SELECT DISTINCT * from user WHERE email = '${email}' OR mobile = '${mobile}'`
-  );
+exports.findOne = async (email, cellphone) => {
+  let sql = `SELECT DISTINCT * from user WHERE`;
+
+  if (email) {
+    sql += ` email = '${email}'`;
+  }
+
+  if (cellphone) {
+    if (email) {
+      sql += ` AND`;
+    }
+    const { country_code, mobile } = cellphone;
+    sql += ` country_code = '${country_code}' AND mobile = '${mobile}'`;
+  }
+
+  const [user, fields] = await db.query(sql);
 
   let foundUser;
   if (user.length) {
@@ -98,7 +132,7 @@ exports.findOne = async (email = "", mobile = "") => {
   return foundUser;
 };
 
-exports.findById = async (user_id = "") => {
+exports.findById = async (user_id) => {
   const [user, fields] = await db.query(
     `SELECT DISTINCT * from user WHERE user_id = '${user_id}'`
   );
@@ -111,8 +145,19 @@ exports.findById = async (user_id = "") => {
   return foundUser;
 };
 
+exports.findByKid = async (kid) => {
+  const [user, fields] = await db.query(
+    `SELECT DISTINCT * from user WHERE kid = '${kid}'`
+  );
+  let foundUser;
+  if (user.length) {
+    foundUser = user[0];
+  }
+
+  return foundUser;
+};
 const generateToken = async (user) => {
-  return jwt.sign({ uid: user.user_id }, process.env.JWT_SECRET, {
+  return jwt.sign({ kid: user.kid }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRESIN,
   });
 };

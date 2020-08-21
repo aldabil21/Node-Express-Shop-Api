@@ -21,6 +21,7 @@
     "nodemon": "^2.0.4"
   },
   "dependencies": {
+    "axios": "^0.19.2",
     "bcrypt": "^5.0.0",
     "cookie-parser": "^1.4.5",
     "date-fns": "^2.15.0",

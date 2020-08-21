@@ -25,8 +25,18 @@ exports.addressSchema = checkSchema({
       errorMessage: i18next.t("common:length_between", { min: 3, max: 10 }),
     },
   },
+  country_code: {
+    trim: true,
+    isLength: {
+      options: { min: 2, max: 4 },
+    },
+    errorMessage: i18next.t("common:invalid_mobile"),
+  },
   mobile: {
     trim: true,
+    isLength: {
+      options: { min: 7, max: 10 },
+    },
     isMobilePhone: true,
     errorMessage: i18next.t("common:invalid_mobile"),
   },

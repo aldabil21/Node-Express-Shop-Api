@@ -4,13 +4,14 @@ const {
   getCheckout,
   addCouponDiscount,
   addPointsDiscount,
-  // editCartItem,
-  // deleteCartItem,
+  patchPaymentMethod,
+  confirmCheckout,
 } = require("../controllers/checkout");
 const {
-  checkoutValidator,
   couponValidator,
   pointsValidator,
+  paymentValidator,
+  checkoutValidator,
 } = require("../validators/checkout");
 
 const protected = require("../middlewares/protected");
@@ -32,14 +33,14 @@ router.patch("/coupon", couponValidator, addCouponDiscount);
 //@desc     Add points discount to totals
 router.patch("/points", pointsValidator, addPointsDiscount);
 
-// //@route    PUT
-// //@access   PROTECTED
-// //@desc     Edit cart item
-// router.put("/:id", cartSchema, editCartItem);
+//@route    PATCH
+//@access   PROTECTED
+//@desc     edit order payment method
+router.patch("/payment", paymentValidator, patchPaymentMethod);
 
-// //@route    DELETE
-// //@access   PUBLIC
-// //@desc     Delete cart item
-// router.delete("/:id", deleteCartItem);
+//@route    PUT
+//@access   PROTECTED
+//@desc     Confirm checkout
+router.post("/", checkoutValidator, confirmCheckout);
 
 module.exports = router;

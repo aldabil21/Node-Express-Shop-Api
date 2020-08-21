@@ -165,7 +165,7 @@ exports.getTotals = async (cartItems = []) => {
   }
 
   //Get Shipping Cost
-  const shipping = this.calculateShipping(cartItems);
+  const shipping = this.calculateShipping(cartItems, brutto.value);
   brutto.value += shipping.value;
 
   //Currency
@@ -180,21 +180,31 @@ exports.getTotals = async (cartItems = []) => {
   return totals;
 };
 
-exports.calculateShipping = (cartItems = []) => {
-  const withShipping = Settings.getSetting("shipping", "status").status === "1";
+exports.calculateShipping = (cartItems = [], brutto) => {
+  const shipConfig = Settings.getSettings("shipping");
+  const withShipping = shipConfig.status === "1";
+  const maxFree = +shipConfig.max_free;
+  const isFlat = shipConfig.flat_status === "1";
+  const isWeight = shipConfig.weight_status === "1";
+  const weightBase = shipConfig.weight_base_amount;
+  const weightRate = shipConfig.weight_kg_amount;
+
+  const freeReturn = {
+    id: "shipping",
+    text: i18next.t("common:free_shipping"),
+    value: 0,
+    sort_order: 3,
+  };
 
   if (!withShipping) {
-    return {
-      id: "shipping",
-      text: i18next.t("common:free_shipping"),
-      value: 0,
-      sort_order: 3,
-    };
+    return freeReturn;
+  }
+
+  if (maxFree > 0 && brutto > maxFree) {
+    return freeReturn;
   }
 
   //flat rate
-  const isFlat =
-    Settings.getSetting("shipping", "flat_status").flat_status === "1";
   if (isFlat) {
     const flatRate = Settings.getSetting("shipping", "flat_rate");
     const flatValue = flatRate.flat_rate || 0;
@@ -208,14 +218,9 @@ exports.calculateShipping = (cartItems = []) => {
 
   //By weight
   let cartWeight = 0;
-  const isWeight =
-    Settings.getSetting("shipping", "weight_status").weight_status === "1";
   if (isWeight) {
     cartWeight = calculateWeight(cartItems, "KG");
-    const weightBase = Settings.getSetting("shipping", "weight_base_amount")
-      .weight_base_amount;
-    const weightRate = Settings.getSetting("shipping", "weight_kg_amount")
-      .weight_kg_amount;
+
     const baseval = weightBase || 0;
     const perKiloRate = weightRate || 0;
     const weightTotal = +baseval + cartWeight * perKiloRate;
@@ -380,14 +385,28 @@ exports.delete = async (data) => {
   return +id;
 };
 
+exports.clear = async (user_id) => {
+  let sql = `DELETE FROM cart WHERE user_id = '${user_id}'`;
+
+  const [item, fields] = await db.query(sql);
+
+  let cleared = true;
+
+  if (!item.affectedRows) {
+    cleared = false;
+  }
+
+  return cleared;
+};
+
 //Helpers
 
 exports.existedItem = async (product_id, option_id, user_id) => {
-  let sql = `SELECT DISTINCT * FROM cart WHERE product_id = '${product_id}' AND user_id = '${user_id}'`;
+  let sql = `SELECT DISTINCT * FROM cart WHERE product_id = '${product_id}' AND user_id = '${user_id}' AND option_id = '${option_id}'`;
 
-  if (option_id) {
-    sql += ` AND option_id = '${option_id}'`;
-  }
+  // if (option_id) {
+  //   sql += ` AND option_id = '${option_id}'`;
+  // }
 
   const [item, fields] = await db.query(sql);
 

@@ -64,8 +64,9 @@ exports.getCoupon = async (coupon_id = 0, code) => {
   `;
 
   if (code) {
+    const couponCode = code.trim();
     //Validation purpose
-    sql += `  WHERE c.code = '${code}' AND c.status = '1' AND c.date_start < NOW() AND c.date_end > NOW()`;
+    sql += `  WHERE c.code = '${couponCode}' AND c.status = '1' AND c.date_start < NOW() AND c.date_end > NOW()`;
   } else {
     //Admin view/edit purpose
     sql += `  WHERE c.coupon_id = '${coupon_id}' `;
@@ -227,7 +228,7 @@ exports.validate = async (data) => {
   //Check if minTotal is enabled => validate
   if (valid && exist.min_total > 0) {
     const [bruttoQuery, _br] = await db.query(
-      `SELECT value FROM order_totals WHERE order_id = '${order_id}' AND code ='brutto'`
+      `SELECT value FROM order_totals WHERE code ='brutto' AND order_id = '${order_id}'`
     );
     const brutto = bruttoQuery.length ? +bruttoQuery[0].value : 0;
     if (exist.min_total > brutto) {
@@ -245,7 +246,7 @@ exports.validate = async (data) => {
     );
     if (query.length && query[0].total >= exist.total_limit) {
       valid = false;
-      message = i18next.t("cart:sorry_all_coupons_been_used");
+      message = i18next.t("cart:all_coupons_been_used");
     }
   }
 
@@ -256,9 +257,35 @@ exports.validate = async (data) => {
     );
     if (query.length && query[0].total >= exist.user_limit) {
       valid = false;
-      message = i18next.t("cart:sorry_you_used_your_coupon_limit");
+      message = i18next.t("cart:user_used_your_coupon_limit");
     }
   }
 
   return { valid, message, couponInfo: exist };
+};
+
+exports.addHistory = async (code, order_id, user_id, value) => {
+  const couponCode = code ? code.trim() : "";
+
+  const coupon = await this.getCoupon(null, couponCode);
+  if (!coupon) {
+    throw new ErrorResponse(400, i18next.t("cart:coupon_invalid_or_expired"));
+  }
+  const amountVal = value || 0;
+  const amount = amountVal > 0 ? amountVal : amountVal * -1;
+
+  const [history, _] = await db.query(`INSERT INTO coupon_history SET ?`, {
+    coupon_id: coupon.coupon_id,
+    order_id,
+    user_id,
+    amount,
+  });
+
+  let result = true;
+
+  if (!history.affectedRows) {
+    throw new ErrorResponse(500, i18next.t("cart:fail_add_coupon_history"));
+  }
+
+  return result;
 };

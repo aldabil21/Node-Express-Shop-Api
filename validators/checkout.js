@@ -5,7 +5,7 @@ const i18next = require("../i18next");
 const ErrorResponse = require("../helpers/error");
 
 const paymentIsAvailable = (code) => {
-  const payment = Settings.getSetting("payment_method", code);
+  const payment = Settings.getSetting("payment_methods", code);
   if (payment[code] !== "1") {
     return false;
   }
@@ -40,12 +40,9 @@ exports.checkoutValidator = checkSchema({
       },
     },
   },
-  payment_method: {
-    in: ["body"],
-    trim: true,
-    custom: {
-      errorMessage: i18next.t("cart:payment_method_not_exist"),
-      options: (value) => paymentIsAvailable(value),
-    },
-  },
 });
+exports.paymentValidator = [
+  body("payment_method", i18next.t("cart:payment_not_exist_or_disabled"))
+    .trim()
+    .custom((value) => paymentIsAvailable(value)),
+];

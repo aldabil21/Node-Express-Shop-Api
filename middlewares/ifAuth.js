@@ -32,7 +32,7 @@ const ifAuth = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.uid);
+    const user = await User.findByKid(decoded.kid);
 
     if (user) {
       req.user = user.user_id;

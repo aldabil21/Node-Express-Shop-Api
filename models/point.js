@@ -2,6 +2,23 @@ const Checkout = require("./checkout");
 const Settings = require("./settings");
 const db = require("../config/db");
 const i18next = require("../i18next");
+const ErrorResponse = require("../helpers/error");
+
+exports.add = async (user_id, order_id, points) => {
+  const [query, _] = await db.query(`INSERT INTO user_point SET ?`, {
+    user_id,
+    order_id,
+    points,
+  });
+
+  let result = true;
+  if (!query.affectedRows) {
+    result = false;
+    throw new ErrorResponse(500, i18next.t("cart:faild_add_points"));
+  }
+
+  return result;
+};
 
 exports.getPoints = async (data) => {
   const { user_id, page, perPage } = data;
@@ -94,7 +111,7 @@ exports.validate = async (data) => {
 
   //Validate points over-covered order total
   const [orderTotal, _t] = await db.query(`
-    SELECT SUM(value) AS value from order_totals WHERE order_id = '${order_id}' AND code = 'brutto' OR code = 'coupon'
+    SELECT SUM(value) AS value from order_totals WHERE (code = 'brutto' OR code = 'coupon') AND order_id = '${order_id}'
   `);
 
   const brutto = +orderTotal[0].value;
@@ -107,8 +124,9 @@ exports.validate = async (data) => {
   let maxDiscount = +parseFloat(brutto * (maxPercentage / 100)).toFixed(2);
 
   let maxPoints = points;
+
   if (discountVal > maxDiscount) {
-    maxPoints = Math.floor(maxDiscount / points_value);
+    maxPoints = Math.floor(maxDiscount / +points_value);
     message = `${i18next.t("cart:points_max_allowed", { points: maxPoints })}`;
     // throw new ErrorResponse(
     //   422,
@@ -117,7 +135,6 @@ exports.validate = async (data) => {
   } else {
     maxDiscount = +discountVal.toFixed(2);
   }
-
   //Currency
   const currCode = Settings.getSetting("config", "currency").currency;
   const currency = i18next.t(`common:${currCode}`);

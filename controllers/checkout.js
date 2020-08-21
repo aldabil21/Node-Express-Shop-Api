@@ -7,6 +7,7 @@ const Settings = require("../models/settings");
 const ErrorResponse = require("../helpers/error");
 const i18next = require("../i18next");
 const { format } = require("date-fns");
+const { default: axios } = require("axios");
 
 //@route    GET
 //@access   PROTECTED
@@ -174,6 +175,7 @@ exports.addPointsDiscount = async (req, res, next) => {
     let existPoints;
     if (points) {
       const pointsResult = await Point.validate(data);
+
       if (!pointsResult.valid) {
         throw new ErrorResponse(400, pointsResult.message);
       }
@@ -183,7 +185,7 @@ exports.addPointsDiscount = async (req, res, next) => {
       if (redeemed.value) {
         existPoints = {
           info: pointsResult.info,
-          value: redeemed.value,
+          value: pointsResult.maxPoints,
           notice: i18next.t("cart:congrats_points", { total: redeemed.value }),
           warning: pointsResult.message,
         };
@@ -198,6 +200,153 @@ exports.addPointsDiscount = async (req, res, next) => {
     res.status(200).json({
       success: true,
       data: { points: existPoints, totals },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+//@route    PATCH
+//@access   PROTECTED
+//@desc     edit order payment method
+exports.patchPaymentMethod = async (req, res, next) => {
+  try {
+    const user_id = req.user;
+    const { payment_method } = req.body;
+
+    ErrorResponse.validateRequest(req);
+
+    //Get user current order
+    const hasOrder = await Checkout.getUncompleteOrder({ user_id });
+    if (!hasOrder) {
+      throw new ErrorResponse(400, i18next.t("cart:order_not_found_try_again"));
+    }
+    const data = {
+      order_id: hasOrder.order_id,
+      user_id,
+      payment_method,
+    };
+
+    // Change payment method in order
+    const pay_meth = await Checkout.updatePayment(data);
+
+    // TODO: get Tap cards
+    let cards;
+    if (pay_meth === "credit_card") {
+      cards = [
+        { card_id: 1, first_six: "112233" },
+        { card_id: 2, first_six: "445566" },
+      ];
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        payment_method: pay_meth,
+        cards,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+//@route    PUT
+//@access   PROTECTED
+//@desc     Confirm checkout
+exports.confirmCheckout = async (req, res, next) => {
+  try {
+    const user_id = req.user;
+    const { address_id, card_id } = req.body;
+
+    ErrorResponse.validateRequest(req);
+
+    //Get user current order
+    const hasOrder = await Checkout.getUncompleteOrder({ user_id });
+    if (!hasOrder) {
+      throw new ErrorResponse(400, i18next.t("cart:order_not_found_try_again"));
+    }
+
+    const payment = hasOrder.payment_method;
+    if (!payment) {
+      throw new ErrorResponse(422, i18next.t("cart:choose_payment_method"));
+    }
+
+    //Refresh order + revalidate products/quantities
+    const orderData = {
+      order_id: hasOrder.order_id,
+      user_id,
+      address_id,
+      payment_method: payment,
+    };
+    const refreshedOrder = await Checkout.updateOrder(orderData);
+
+    //product changed during checkout
+    if (refreshedOrder.notice) {
+      throw new ErrorResponse(
+        400,
+        `${refreshedOrder.notice}. ${i18next.t("common:refresh_try_again")}`
+      );
+    }
+
+    //Handle confirm
+    let redirect = false;
+    let order_id = hasOrder.order_id;
+    let data;
+    //if COD
+    if (payment === "cod") {
+      //OR if(!card_id) then payment is COD. //TODO: check max allowed total for COD (to be addded)
+      const codData = { order_id, user_id, comment: "" };
+      await Checkout.confirm(codData);
+    } else if (payment === "credit_card") {
+      //Deal later
+    }
+
+    // const response = await axios.post(
+    //   "https://api.tap.company/v2/charges",
+    //   {
+    //     amount: "1",
+    //     currency: "SAR",
+    //     customer: {
+    //       // id: "",
+    //       first_name: "First Name",
+    //       email: "email@email.com",
+    //       phone: {
+    //         country_code: "966",
+    //         number: "555666777",
+    //       },
+    //     },
+    //     threeDSecure: false,
+    //     source: {
+    //       id: "tok_CKGH41311012Zpz6527182",
+    //     },
+    //     redirect: {
+    //       url: "https://red.com",
+    //     },
+    //   },
+    //   {
+    //     headers: {
+    //       Authorization: "Bearer sk_test_ARN3yxOEl9GJakqoFt8if0rB",
+    //     },
+    //   }
+    // );
+    // const chargesRes = response.data;
+
+    // const charges = await axios.post(
+    //   "https://api.tap.company/v2/charges/list",
+    //   {},
+    //   {
+    //     headers: {
+    //       Authorization: "Bearer sk_test_ARN3yxOEl9GJakqoFt8if0rB",
+    //     },
+    //   }
+    // );
+    // const chr = charges.data;
+
+    res.status(200).json({
+      success: true,
+      redirect: redirect,
+      date: data,
     });
   } catch (err) {
     next(err);

@@ -20,17 +20,15 @@ exports.getCheckout = async (data) => {
   let coupon;
   let points;
   //Validate order_total COUPON/POINTS if order left-over then resumed
-  const [unUsedDiscount, _uc] = await db.query(
-    `SELECT * from order_totals WHERE order_id = ${order_id} AND code = 'coupon' OR code = 'points'`
-  );
+  const usedDiscounts = await getTotalsDiscounts(order_id);
 
-  for (const discount of unUsedDiscount) {
+  for (const discount of usedDiscounts) {
     //validate coupon if still valid
     if (discount.code === "coupon") {
       const couponText = discount.text;
       const code = couponText.split(":")[1].split("(")[0];
       const data = {
-        code: code ? code.trim() : "",
+        code: code || "",
         user_id,
         order_id,
         orderProducts: products,
@@ -96,14 +94,17 @@ exports.addOrder = withTransaction(async (transaction, data) => {
 
   const defaultOrder = {
     user_id,
+    invoice_no: "",
     firstname: address ? address.firstname : "",
     lastname: address ? address.lastname : "",
+    country_code: address ? address.country_code : "",
     mobile: address ? address.mobile : "",
     line1: address ? address.line1 : "",
     country: address ? address.country : "",
     city: address ? address.city : "",
     payment_method: "",
-    payment_code: "",
+    charge_id: "",
+    tap_status: "",
     total: brutto.value,
     order_status_id: 0,
     tracking: "",
@@ -161,11 +162,11 @@ exports.addOrder = withTransaction(async (transaction, data) => {
 });
 
 exports.updateOrder = withTransaction(async (transaction, data) => {
-  const { order_id, user_id, address_id } = data;
+  const { order_id, user_id, address_id, payment_method } = data;
 
   const cartItems = await Cart.getCart(data);
 
-  //Check if product/category was disabled/removed then clear order products/total and return
+  //Check if product/category was disabled/removed then clear order products/total and return nptice
   if (!cartItems.products.length) {
     await this.clearOrder(order_id);
     return { order_id, notice: i18next.t("cart:checkout_change_notice") };
@@ -188,18 +189,19 @@ exports.updateOrder = withTransaction(async (transaction, data) => {
     user_id,
     firstname: address ? address.firstname : "",
     lastname: address ? address.lastname : "",
-    mobile: address ? address.mobile : "",
+    country_code: address ? address.country_code : 0,
+    mobile: address ? address.mobile : 0,
     line1: address ? address.line1 : "",
     country: address ? address.country : "",
     city: address ? address.city : "",
-    payment_method: "",
-    payment_code: "",
+    address_id: address_id || 0,
+    payment_method: payment_method || "",
     total: brutto.value,
     order_status_id: 0,
     tracking: "",
   };
-  const lat = address ? address.location.x : "";
-  const lng = address ? address.location.y : "";
+  const lat = address && address.location ? address.location.x : "";
+  const lng = address && address.location ? address.location.y : "";
 
   //Update cart -> order w order values
   const [order, _o] = await transaction.query(
@@ -252,7 +254,7 @@ exports.updateOrder = withTransaction(async (transaction, data) => {
 
 exports.getUncompleteOrder = async (data) => {
   const { user_id } = data;
-  let sql = `SELECT DISTINCT * from orders WHERE user_id = '${user_id}' AND order_status_id = '0'`;
+  let sql = `SELECT DISTINCT * from orders WHERE order_status_id = '0' AND user_id = '${user_id}'`;
 
   const [query, fields] = await db.query(sql);
 
@@ -293,7 +295,7 @@ exports.getProducts = async (order_id) => {
 };
 exports.getTotals = async (order_id) => {
   const [query, _t] = await db.query(
-    `SELECT * FROM order_totals WHERE order_id = '${order_id}' ORDER BY sort_order`
+    `SELECT text, code, value, sort_order FROM order_totals WHERE order_id = '${order_id}' ORDER BY sort_order`
   );
 
   let totals = query;
@@ -340,10 +342,10 @@ exports.redeemCoupon = withTransaction(async (transaction, data) => {
 
   //Calculate coupon according to type + Get rid of prev coupon if exist
   const [deleteOldCoup, _d] = await transaction.query(
-    `DELETE FROM order_totals WHERE order_id = '${order_id}' AND code = 'coupon'`
+    `DELETE FROM order_totals WHERE code = 'coupon' AND order_id = '${order_id}'`
   );
   const [total, _t] = await transaction.query(`
-    SELECT SUM(value) AS value from order_totals WHERE order_id = '${order_id}' AND code = 'brutto' OR code = 'points'
+    SELECT SUM(value) AS value from order_totals WHERE (code = 'brutto' OR code = 'points') AND order_id = '${order_id}'
     `);
   const brutto = total[0].value;
   let discountVal = 0;
@@ -386,7 +388,7 @@ exports.redeemPoints = withTransaction(async (transaction, data) => {
 
   //Calculate points + Get rid of old one
   const [deleteOldpoints, _d] = await transaction.query(
-    `DELETE FROM order_totals WHERE order_id = '${order_id}' AND code = 'points'`
+    `DELETE FROM order_totals WHERE code = 'points' AND order_id = '${order_id}'`
   );
   const pointsInfo = {
     order_id,
@@ -414,9 +416,85 @@ exports.clearOrder = async (order_id) => {
   return true;
 };
 
+exports.confirm = withTransaction(async (transaction, data) => {
+  const { order_id, user_id, comment } = data;
+
+  const initialStatus = 3; //Could be from settings
+
+  //Change order status/total
+  const orderNewTotal = await getTotalsSum(order_id);
+
+  const [order, _o] = await transaction.query(
+    `UPDATE orders SET ? WHERE order_id = '${order_id}'`,
+    {
+      order_status_id: initialStatus,
+      total: orderNewTotal,
+    }
+  );
+
+  //Add order history
+  const [history, _h] = await transaction.query(
+    `INSERT INTO order_history SET ?`,
+    {
+      order_id,
+      order_status_id: initialStatus,
+      comment: comment || "",
+    }
+  );
+
+  //Write coupon and points history if used in this order
+  const usedDiscounts = await getTotalsDiscounts(order_id);
+  if (usedDiscounts.length) {
+    for (const discount of usedDiscounts) {
+      if (discount.code === "coupon") {
+        const couponText = discount.text;
+        const code = couponText.split(":")[1].split("(")[0];
+        const amount = discount.value;
+        await Coupon.addHistory(code, order_id, user_id, amount);
+      } else if (discount.code === "points") {
+        const pointsText = discount.text;
+        const pointsTotal = pointsText.split(":")[1];
+        const totalused = pointsTotal ? +pointsTotal.trim() * -1 : 0;
+        await Point.add(user_id, order_id, totalused);
+      }
+    }
+  }
+
+  //Add user earned points (if anabled)
+  const points = Settings.getSettings("config", "points_");
+  if (points.points_status === "1") {
+    const totalPoints = await calculateEarnedPoints(order_id);
+    if (totalPoints) {
+      await Point.add(user_id, order_id, totalPoints);
+    }
+  }
+
+  //Subtract products & Clear cart... I'm not waiting for this
+  subtractQtyAndCartClear(user_id);
+
+  //TODO: Mail send and/or push notification send
+
+  await transaction.commit();
+
+  return order_id;
+});
+
+exports.updatePayment = async (data) => {
+  const { order_id, user_id, payment_method } = data;
+
+  const [ord, _] = await db.query(
+    `UPDATE orders SET ? WHERE order_id = '${order_id}'`,
+    {
+      payment_method,
+    }
+  );
+
+  return payment_method;
+};
+
 exports.clearCoupon = async (order_id) => {
   const [query, fields] = await db.query(
-    `DELETE FROM order_totals WHERE order_id = '${order_id}' AND code = 'coupon'`
+    `DELETE FROM order_totals WHERE code = 'coupon' AND order_id = '${order_id}'`
   );
 
   if (!query.affectedRows) {
@@ -425,9 +503,10 @@ exports.clearCoupon = async (order_id) => {
 
   return true;
 };
+
 exports.clearPoints = async (order_id) => {
   const [query, fields] = await db.query(
-    `DELETE FROM order_totals WHERE order_id = '${order_id}' AND code = 'points'`
+    `DELETE FROM order_totals WHERE code = 'points' AND order_id = '${order_id}'`
   );
 
   if (!query.affectedRows) {
@@ -435,4 +514,76 @@ exports.clearPoints = async (order_id) => {
   }
 
   return true;
+};
+
+const calculateEarnedPoints = async (order_id) => {
+  const [points, _] = await db.query(
+    `SELECT SUM(p.points * op.quantity) AS total FROM order_products op
+    LEFT JOIN product p ON(p.product_id = op.product_id) WHERE op.order_id = '${order_id}'`
+  );
+
+  let total = 0;
+
+  if (points.length) {
+    const result = points[0].total;
+    total = result ? +result : 0;
+  }
+
+  return total;
+};
+
+const getTotalsDiscounts = async (order_id) => {
+  const [discounts, _ud] = await db.query(
+    `SELECT * FROM order_totals WHERE (code = 'coupon' OR code = 'points') AND order_id = '${order_id}'`
+  );
+  return discounts;
+};
+
+const getTotalsSum = async (order_id) => {
+  const [totals, _ud] = await db.query(
+    `SELECT SUM(value) AS total FROM order_totals WHERE code != 'brutto' AND order_id = '${order_id}'`
+  );
+
+  let total = 0;
+
+  if (totals.length) {
+    const result = totals[0].total;
+    total = result ? +result : 0;
+  }
+
+  return total;
+};
+
+const subtractQtyAndCartClear = async (user_id) => {
+  const [cartPord, _] = await db.query(`
+    SELECT c.product_id, c.option_id, c.quantity AS purchased_qty, p.subtract, p.sold, p.quantity AS prod_qty, po.quantity AS option_qty
+    from cart c LEFT JOIN product p ON(c.product_id = p.product_id)
+    LEFT JOIN product_option po ON(c.product_id = po.product_id AND c.option_id = po.option_id)
+    WHERE c.user_id = '${user_id}'
+  `);
+
+  for (const product of cartPord) {
+    if (product.option_id) {
+      const newQtyOption = product.subtract
+        ? +product.option_qty - +product.purchased_qty
+        : +product.option_qty;
+      await db.query(`
+          UPDATE product_option po, product p SET
+          po.quantity = '${newQtyOption}',
+          p.sold = p.sold + '${+product.purchased_qty}'
+          WHERE p.product_id = '${product.product_id}'
+          AND po.option_id = '${product.option_id}'
+      `);
+    } else {
+      const newQtyProduct = product.subtract
+        ? +product.prod_qty - +product.purchased_qty
+        : +product.prod_qty;
+      await db.query(
+        `UPDATE product SET quantity = '${newQtyProduct}', sold = sold + '${+product.purchased_qty}'
+        WHERE product_id = '${product.product_id}'`
+      );
+    }
+  }
+
+  await Cart.clear(user_id);
 };

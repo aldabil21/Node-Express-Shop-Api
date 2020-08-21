@@ -23,7 +23,8 @@ const protected = async (req, res, next) => {
     }
     //Decode token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.uid);
+
+    const user = await User.findByKid(decoded.kid);
 
     if (!user) {
       throw new ErrorResponse(401, i18next.t("common:invalid_credentials"));
