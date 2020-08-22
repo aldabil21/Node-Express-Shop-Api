@@ -9,7 +9,7 @@ const {
 const { categorySchema } = require("../validators/category");
 const authorize = require("../middlewares/authorize");
 
-router.use(authorize("admin"));
+router.use(authorize);
 
 //@route    GET
 //@access   ADMIN

@@ -10,8 +10,9 @@ exports.getCards = async (req, res, next) => {
   try {
     const user_id = req.user;
 
-    // const address = await Address.getAddress(id, user_id);
-    res.status(200).json({ success: true, data: "address" });
+    const cards = await Tap.getUserCardsFromTap();
+
+    res.status(200).json({ success: true, data: cards });
   } catch (err) {
     next(err);
   }
@@ -28,15 +29,15 @@ exports.addCard = async (req, res, next) => {
 
     ErrorResponse.validateRequest(req);
 
-    //Get Tap customer
-    tapCustomer = await Tap.getCustomer(user_id);
+    // //Get Tap customer
+    // tapCustomer = await Tap.getCustomer(user_id);
 
     // //Create Tap customer if not exist
     // if (!tapCustomer) {
     //   tapCustomer = await Tap.createCustomer(user_id);
     // }
 
-    // const card = await Tap.saveCard(tapCustomer.tap_id, tok_id, user_id);
+    const card = await Tap.saveCard(tapCustomer.tap_id, tok_id, user_id);
     // const card = await Tap.getCustomersFromTap();
 
     res.status(201).json({ success: true, data: card });

@@ -1,5 +1,5 @@
 const { checkSchema } = require("express-validator");
-const i18next = require("../i18next");
+const i18next = require("../../i18next");
 const Product = require("../models/product");
 const Category = require("../models/categories");
 const ErrorResponse = require("../helpers/error");

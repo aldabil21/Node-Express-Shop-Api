@@ -1,5 +1,5 @@
 const { checkSchema } = require("express-validator");
-const i18next = require("../i18next");
+const i18next = require("../../i18next");
 
 const languageChecker = {
   options: (value) => i18next.options.supportedLngs.includes(value),

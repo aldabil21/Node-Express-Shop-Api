@@ -63,11 +63,21 @@ exports.createCustomer = async (user_id) => {
 /**
  * Tap Cards
  */
-exports.getCards = async (user_id) => {
+exports.getUserCards = async (user_id) => {
   let sql = `SELECT DISTINCT * FROM tap_cards WHERE user_id = '${user_id}'`;
 
   const [cards, _] = await db.query(sql);
 
+  return cards;
+};
+
+exports.getUserCardsFromTap = async (tap_id) => {
+  const _cards = await TapAPI.post(`/card/cus_TS071320201552Np4o2008572`, {
+    // limit: 25,
+    // starting_after:"cus_foo" //pagination
+  });
+
+  const cards = _cards.data;
   return cards;
 };
 
@@ -86,12 +96,12 @@ exports.getCard = async (id) => {
 };
 
 exports.saveCard = async (tap_id, tok_id, user_id) => {
-  const card = await TapAPI.post(`/card/${tap_id}`, {
+  const card = await TapAPI.post(`/card/cus_TS071320201552Np4o2008572`, {
     source: tok_id,
   });
 
   const cardData = card.data;
-
+  console.log(cardData);
   if (!cardData) {
     throw new ErrorResponse(500, i18next.t("card:fail_save_card"));
   }

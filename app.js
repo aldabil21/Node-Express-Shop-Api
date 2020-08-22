@@ -24,32 +24,40 @@ settingsLoader().then(() => {
   app.use(i18n.handle(i18next));
   app.use(languegeSetter);
 
-  //Routes
+  /**
+   * Routes
+   */
+  // User
   const auth = require("./routes/auth");
   const products = require("./routes/product");
-  const specials = require("./routes/specials");
-  const filters = require("./routes/filters");
-  const categories = require("./routes/categories");
-  const coupon = require("./routes/coupon");
-  const point = require("./routes/point");
   const cart = require("./routes/cart");
+  const point = require("./routes/point");
   const checkout = require("./routes/checkout");
   const address = require("./routes/address");
   const settings = require("./routes/settings");
   const card = require("./routes/card");
-
   app.use("/api/v1/auth", auth);
   app.use("/api/v1/products", products);
-  app.use("/api/v1/products", specials);
-  app.use("/api/v1/filters", filters);
-  app.use("/api/v1/categories", categories);
-  app.use("/api/v1/coupons", coupon);
   app.use("/api/v1/points", point);
   app.use("/api/v1/cart", cart);
   app.use("/api/v1/checkout", checkout);
   app.use("/api/v1/address", address);
   app.use("/api/v1/config", settings);
   app.use("/api/v1/card", card);
+
+  // Admin
+  const admin = require("./admin/routes/auth");
+  const adminProducts = require("./admin/routes/product");
+  const coupon = require("./admin/routes/coupon");
+  const specials = require("./admin/routes/specials");
+  const filters = require("./admin/routes/filters");
+  const categories = require("./admin/routes/categories");
+  app.use("/api/v1/admin/auth", admin);
+  app.use("/api/v1/admin/products", adminProducts);
+  app.use("/api/v1/admin/products", specials);
+  app.use("/api/v1/admin/filters", filters);
+  app.use("/api/v1/admin/categories", categories);
+  app.use("/api/v1/admin/coupons", coupon);
 
   //Error handlers
   app.use(error404);

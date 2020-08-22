@@ -1,9 +1,9 @@
 const jwt = require("jsonwebtoken");
-const User = require("../models/user");
+const Admin = require("../models/admin");
 const ErrorResponse = require("../helpers/error");
-const i18next = require("../i18next");
+const i18next = require("../../i18next");
 
-const authorize = (roles = []) => async (req, res, next) => {
+const authorize = async (req, res, next) => {
   try {
     let token;
 
@@ -23,16 +23,13 @@ const authorize = (roles = []) => async (req, res, next) => {
     }
     //Decode token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findByKid(decoded.kid);
+    const admin = await Admin.findByKid(decoded.kid);
 
-    if (!user) {
+    if (!admin) {
       throw new ErrorResponse(401, i18next.t("common:invalid_credentials"));
     }
 
-    if (!roles.includes(user.role)) {
-      throw new ErrorResponse(401, i18next.t("common:not_authorized"));
-    }
-    req.user = user.user_id;
+    req.admin = admin.admin_id;
 
     next();
   } catch (err) {

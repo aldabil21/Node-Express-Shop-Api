@@ -461,5 +461,6 @@ const calculateWeight = (cartItems = [], unit = "g") => {
     return gram_weight;
   }
   const kg_weight = gram_weight / 1000;
+
   return kg_weight;
 };

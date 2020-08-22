@@ -1,5 +1,5 @@
-const db = require("../config/db");
-const i18next = require("../i18next");
+const db = require("../../config/db");
+const i18next = require("../../i18next");
 const ErrorResponse = require("../helpers/error");
 
 exports.getProductSpecials = async (product_id) => {

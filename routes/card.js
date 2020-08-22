@@ -11,10 +11,10 @@ const i18next = require("../i18next");
 
 router.use(protected);
 
-//@route    GET
-//@access   PROTECTED
-//@desc     Get Tap Cards
-// router.get("/", getCards);
+// @route    GET
+// @access   PROTECTED
+// @desc     Get Tap Cards
+router.get("/", getCards);
 
 //@route    POST
 //@access   PROTECTED

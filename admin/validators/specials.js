@@ -1,7 +1,7 @@
 const { checkSchema } = require("express-validator");
 const Product = require("../models/product");
 const ErrorResponse = require("../helpers/error");
-const i18next = require("../i18next");
+const i18next = require("../../i18next");
 
 exports.specialSchema = checkSchema({
   product_id: {

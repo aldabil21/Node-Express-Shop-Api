@@ -9,7 +9,7 @@ const {
 const { specialSchema } = require("../validators/specials");
 const authorize = require("../middlewares/authorize");
 
-router.use(authorize("admin"));
+router.use(authorize);
 
 //@route    GET
 //@access   ADMIN

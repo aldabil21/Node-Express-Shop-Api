@@ -10,7 +10,7 @@ const {
 const { couponSchema } = require("../validators/coupon");
 const authorize = require("../middlewares/authorize");
 
-router.use(authorize("admin"));
+router.use(authorize);
 
 //@route    GET
 //@access   ADMIN
