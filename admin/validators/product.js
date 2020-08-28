@@ -1,4 +1,9 @@
-const { checkSchema } = require("express-validator");
+const {
+  checkSchema,
+  sanitizeQuery,
+  check,
+  query,
+} = require("express-validator");
 const i18next = require("../../i18next");
 
 const languageChecker = {
@@ -175,3 +180,12 @@ exports.productSchema = checkSchema({
   "wholesales.*.quantity": quantityChecker,
   "wholesales.*.price": priceChecker,
 });
+
+exports.queryVal = [
+  query("special").toBoolean(),
+  query("page").toInt(),
+  query("perPage").toInt(),
+  query("direction").customSanitizer((value) =>
+    value === "asc" || value === "desc" ? value : "asc"
+  ),
+];

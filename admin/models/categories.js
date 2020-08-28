@@ -142,6 +142,28 @@ exports.deleteCategory = async (category_id) => {
   return +category_id;
 };
 
+exports.getAllRaw = async () => {
+  let sql = `SELECT c.category_id, c.image, c.parent_id, c.sort_order, c.status, cd.title
+  from category c 
+  LEFT JOIN category_description cd ON(c.category_id = cd.category_id)
+  WHERE cd.language = '${reqLanguage}'
+  ORDER BY CASE WHEN c.parent_id = 0 THEN c.category_id ELSE c.parent_id END, c.parent_id, c.category_id`;
+
+  const [categories, _c] = await db.query(sql);
+
+  const divider = ">";
+  let currentParent = "";
+  for (const cat of categories) {
+    if (cat.parent_id === 0) {
+      currentParent = cat.title;
+      continue;
+    }
+    cat.title = `${currentParent} ${divider} ${cat.title}`;
+  }
+
+  return categories;
+};
+
 exports.isIncludingProducts = async (prodIds = []) => {
   const ids = [0, ...prodIds];
   const [categories, fields] = await db.query(`

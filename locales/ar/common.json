@@ -8,5 +8,9 @@
   "add_error": "خطأ غير متوقع. راجع الأدمن.",
   "discount": "خصم",
   "use_coupon": "إستخدم كوبون",
-  "sar": "ر.س"
+  "sar": "ر.س",
+  "somthing_went_wrong": "حدث خطأ ما",
+  "fail_to_authenticate": "فشل في محاولة الدخول، الرجاء تسجيل الدخول مرة أخرى",
+  "signin_credintials_incorrect": "معلومات الدخول غير صحيحة",
+  "account_disabled": "حسابك معطّل حالياً"
 }

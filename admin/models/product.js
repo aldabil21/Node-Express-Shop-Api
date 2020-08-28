@@ -25,7 +25,7 @@ exports.getProduct = async (product_id, includes = fullVer) => {
               LEFT JOIN tax t ON(p.tax_id = t.tax_id AND t.status = '1')
               LEFT JOIN coupon_product cp ON(cp.product_id = p.product_id)
               LEFT JOIN coupon_category cc ON(cc.category_id = pc.category_id)
-              LEFT JOIN coupon c ON(c.coupon_id = cp.coupon_id OR cc.coupon_id = c.coupon_id AND c.status = '1' AND c.date_start < NOW() AND c.date_end > NOW())
+              LEFT JOIN coupon c ON((c.coupon_id = cp.coupon_id OR cc.coupon_id = c.coupon_id) AND c.status = '1' AND c.date_start < NOW() AND c.date_end > NOW())
               WHERE p.product_id = '${product_id}' AND pd.language = '${reqLanguage}' AND p.status = '1' AND cat.status = '1' ORDER BY ps.price, -c.amount
               `;
 
@@ -125,8 +125,8 @@ exports.getProducts = async (filters) => {
   const _limit = perPage || 20;
   const _start = (_page - 1) * _limit;
 
-  let sql = `SELECT p.product_id, p.quantity, p.image, p.price, MIN(ps.price) AS special, p.points, p.tax_id, p.available_at,
-              p.view, p.sold, pd.title, pd.description, pd.tags, pd.meta_title, pd.meta_description, pd.meta_keywords, t.value AS tax_value,
+  let sql = `SELECT p.product_id, p.quantity, p.image, p.price, p.points, p.tax_id, p.available_at,
+              p.view, p.sold, p.status, p.date_added, MIN(ps.price) AS special, pd.title, pd.description, pd.tags, pd.meta_title, pd.meta_description, pd.meta_keywords, t.value AS tax_value,
               c.code AS coupon_code, MAX(c.amount) AS coupon_amount, c.type AS coupon_type              
               FROM product p
               LEFT JOIN product_description pd ON(p.product_id = pd.product_id)
@@ -137,7 +137,7 @@ exports.getProducts = async (filters) => {
               LEFT JOIN tax t ON(p.tax_id = t.tax_id AND t.status = '1')
               LEFT JOIN coupon_product cp ON(cp.product_id = p.product_id)
               LEFT JOIN coupon_category cc ON(cc.category_id = pc.category_id)
-              LEFT JOIN coupon c ON(c.coupon_id = cp.coupon_id OR cc.coupon_id = c.coupon_id AND c.status = '1' AND c.date_start < NOW() AND c.date_end > NOW())
+              LEFT JOIN coupon c ON((c.coupon_id = cp.coupon_id OR cc.coupon_id = c.coupon_id) AND c.status = '1' AND c.date_start < NOW() AND c.date_end > NOW())
               `;
 
   sql += ` WHERE pd.language = '${reqLanguage}'`;
@@ -167,7 +167,14 @@ exports.getProducts = async (filters) => {
   sql += ` GROUP BY p.product_id`;
 
   if (sort) {
-    sql += ` ORDER BY p.${sort} ${direction}`;
+    let selector = "p";
+    if (sort === "title") {
+      selector = "pd";
+    }
+    if (sort === "categories") {
+      selector = "cd";
+    }
+    sql += ` ORDER BY ${selector}.${sort}  ${direction}`;
   }
 
   sql += ` LIMIT ${_start}, ${_limit}`;
@@ -224,6 +231,7 @@ exports.getProducts = async (filters) => {
         view: product.view,
         sold: product.sold,
         title: product.title,
+        status: product.status,
         categories,
         filters,
       });
@@ -448,6 +456,7 @@ exports.updateProduct = withTransaction(
           optionDetail
         );
         for (let optDesc of opt.description) {
+          //TODO: maybe add image to option?
           await transaction.query("INSERT INTO option_description SET ?", {
             option_id: inserOp.insertId,
             language: optDesc.language,

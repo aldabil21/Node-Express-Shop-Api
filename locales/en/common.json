@@ -8,5 +8,9 @@
   "add_error": "Uncommon Error: Contact Your Administrator.",
   "discount": "Discount",
   "use_coupon": "coupon",
-  "sar": "SAR"
+  "sar": "SAR",
+  "somthing_went_wrong": "Somthing went wrong!",
+  "fail_to_authenticate": "Authenticate Fail. Please sign in again.",
+  "signin_credintials_incorrect": "Invalid Credintials",
+  "account_disabled": "Account is disabled"
 }

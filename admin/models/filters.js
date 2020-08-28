@@ -147,3 +147,24 @@ exports.deleteFilter = async (filter_id) => {
 
   return +filter_id;
 };
+
+exports.getAllRaw = async () => {
+  let sql = `SELECT f.filter_id, f.parent_id, f.sort_order, f.status, fd.title
+  from filter f 
+  LEFT JOIN filter_description fd ON(f.filter_id = fd.filter_id)
+  WHERE fd.language = '${reqLanguage}'
+  ORDER BY CASE WHEN f.parent_id = 0 THEN f.filter_id ELSE f.parent_id END, f.parent_id, f.filter_id`;
+
+  const [filters, _c] = await db.query(sql);
+  const divider = i18next.dir(reqLanguage) === "rtl" ? "<" : ">";
+  let currentParent = "";
+  for (const fil of filters) {
+    if (fil.parent_id === 0) {
+      currentParent = fil.title;
+      continue;
+    }
+    fil.title = `${currentParent} ${divider} ${fil.title}`;
+  }
+
+  return filters;
+};

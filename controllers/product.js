@@ -1,7 +1,6 @@
 const Product = require("../models/product");
 const i18next = require("../i18next");
 const ErrorResponse = require("../helpers/error");
-const { strToBoolaen } = require("../helpers/generals");
 
 //@route    GET
 //@access   PUBLIC
@@ -45,7 +44,7 @@ exports.getProducts = async (req, res, next) => {
     language: req.language,
     category,
     filter,
-    special: strToBoolaen(special),
+    special: special,
     page,
     perPage,
     sort,

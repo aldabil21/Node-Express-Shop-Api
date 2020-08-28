@@ -1,21 +1,25 @@
 const express = require("express");
 const cookieParser = require("cookie-parser");
 const { guestId } = require("./middlewares/guestId");
-const settingsLoader = require("./helpers/settings");
+const { settingsLoader } = require("./helpers/settings");
 const PORT = process.env.PORT || 5000;
 const { errorHandler, error404 } = require("./middlewares/error");
+const cors = require("./middlewares/cors");
 
 //AppConfig loader
 settingsLoader().then(() => {
   //App
   const app = express();
 
+  //Parsers
+  app.use(express.json());
+
+  //Allow CROS
+  app.use(cors);
+
   //Cookie
   app.use(cookieParser());
   app.use(guestId);
-
-  //Parsers
-  app.use(express.json());
 
   //Language
   const i18next = require("./i18next");
@@ -23,7 +27,6 @@ settingsLoader().then(() => {
   const languegeSetter = require("./middlewares/language");
   app.use(i18n.handle(i18next));
   app.use(languegeSetter);
-
   /**
    * Routes
    */

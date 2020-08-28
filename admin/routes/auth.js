@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { signin, signout } = require("../controllers/auth");
+const { signin, signout, initApp } = require("../controllers/auth");
 const { adminSchema, isOTP, isSignin } = require("../validators/admin");
 const authorize = require("../middlewares/authorize");
 
@@ -13,6 +13,11 @@ router.post("/signin", isSignin, signin);
 //@access   ADMIN
 //@desc     Sign out
 router.post("/signout", authorize, signout);
+
+//@route    POST
+//@access   ADMIN
+//@desc     Init app - auto auth
+router.post("/", authorize, initApp);
 
 //TODO: routes: reset password -
 

@@ -1,10 +1,18 @@
 const ErrorResponse = require("../helpers/error");
+const i18next = require("../../i18next");
 
 exports.errorHandler = (err, req, res, next) => {
   //   console.log(err);
   let status = err.statusCode || 500;
-  let message = err.message || "Somthing went wrong";
+  let message = err.message || i18next.t("common:somthing_went_wrong");
   let data = err.data || {};
+
+  //Token invalid error
+
+  if ((err.name = "JsonWebTokenError")) {
+    status = 401;
+    message = i18next.t("common:fail_to_authenticate");
+  }
 
   //Axios || Tap errors
   if (err.response && err.response.data) {

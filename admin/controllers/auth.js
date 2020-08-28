@@ -1,5 +1,6 @@
 const Admin = require("../models/admin");
 const ErrorResponse = require("../helpers/error");
+const i18next = require("../../i18next");
 // const { resGuestIdCookie } = require("../middlewares/guestId");
 
 //@route    POST
@@ -59,12 +60,13 @@ exports.signin = async (req, res, next) => {
     ErrorResponse.validateRequest(req);
 
     const token = await Admin.signin(data);
-
     //clear guest cookie + add token cookie
     res.clearCookie("guest");
     res.cookie("token", token, tokenCookieOptions);
 
-    res.status(200).json({ success: true, data: token });
+    res
+      .status(200)
+      .json({ success: true, data: { token, locale: i18next.language } });
   } catch (err) {
     next(err);
   }
@@ -74,6 +76,25 @@ exports.signout = (req, res, next) => {
   res.clearCookie("token");
   // const guestId = resGuestIdCookie(res);
   res.status(200).json({ success: true, data: {} });
+};
+
+//@route    POST
+//@access   ADMIN
+//@desc     Init app - auto auth
+exports.initApp = async (req, res, next) => {
+  try {
+    //return same token
+    const token = req.headers.authorization.split(" ")[1];
+    const locale = req.locale || i18next.language;
+
+    //clear guest cookie + add token cookie
+    res.clearCookie("guest");
+    res.cookie("token", token, tokenCookieOptions);
+
+    res.status(200).json({ success: true, data: { token, locale } });
+  } catch (err) {
+    next(err);
+  }
 };
 
 //Helpers

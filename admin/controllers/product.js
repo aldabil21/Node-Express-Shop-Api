@@ -1,7 +1,8 @@
 const Product = require("../models/product");
+const Category = require("../models/categories");
+const Filter = require("../models/filters");
 const i18next = require("../../i18next");
 const ErrorResponse = require("../helpers/error");
-const { strToBoolaen } = require("../helpers/generals");
 
 //@route    GET
 //@access   ADMIN
@@ -34,35 +35,43 @@ exports.getProducts = async (req, res, next) => {
     category,
     filter,
     special,
-    page = 1,
-    perPage = 20,
-    sort = "view",
-    direction = "DESC",
-    q = "",
-  } = req.query;
-
-  const filters = {
-    language: req.language,
-    category,
-    filter,
-    special: strToBoolaen(special),
     page,
     perPage,
     sort,
     direction,
     q,
+  } = req.query;
+
+  const data = {
+    category: category || "",
+    filter: filter || "",
+    special: special,
+    page: page || 1,
+    perPage: perPage || 20,
+    sort,
+    direction: direction || "DESC",
+    q,
   };
 
   try {
-    const products = await Product.getProducts(filters);
-    const totalCount = await Product.getTotalProducts(filters);
+    const products = await Product.getProducts(data);
+    const totalCount = await Product.getTotalProducts(data);
+
+    //Categories
+    const categories = await Category.getAllRaw();
+    //Filters
+    const filters = await Filter.getAllRaw();
+
     const pagination = {
       totalCount,
-      currentPage: +page,
-      perPage: +perPage,
-      totalPages: Math.ceil(totalCount / perPage),
+      currentPage: data.page,
+      perPage: data.perPage,
+      totalPages: Math.ceil(totalCount / data.perPage),
     };
-    res.status(200).json({ success: true, data: { products, pagination } });
+    res.status(200).json({
+      success: true,
+      data: { products, categories, filters, pagination },
+    });
   } catch (err) {
     next(err);
   }

@@ -22,7 +22,7 @@ exports.getProduct = async (product_id, includes = fullVer) => {
               LEFT JOIN tax t ON(p.tax_id = t.tax_id AND t.status = '1')
               LEFT JOIN coupon_product cp ON(cp.product_id = p.product_id)
               LEFT JOIN coupon_category cc ON(cc.category_id = pc.category_id)
-              LEFT JOIN coupon c ON(c.coupon_id = cp.coupon_id OR cc.coupon_id = c.coupon_id AND c.status = '1' AND c.date_start < NOW() AND c.date_end > NOW())
+              LEFT JOIN coupon c ON((c.coupon_id = cp.coupon_id OR cc.coupon_id = c.coupon_id) AND c.status = '1' AND c.date_start < NOW() AND c.date_end > NOW())
               WHERE p.product_id = '${product_id}' AND pd.language = '${reqLanguage}' AND p.status = '1' AND cat.status = '1' ORDER BY ps.price, -c.amount
               `;
 
@@ -134,7 +134,7 @@ exports.getProducts = async (filters) => {
               LEFT JOIN tax t ON(p.tax_id = t.tax_id AND t.status = '1')
               LEFT JOIN coupon_product cp ON(cp.product_id = p.product_id)
               LEFT JOIN coupon_category cc ON(cc.category_id = pc.category_id)
-              LEFT JOIN coupon c ON(c.coupon_id = cp.coupon_id OR cc.coupon_id = c.coupon_id AND c.status = '1' AND c.date_start < NOW() AND c.date_end > NOW())
+              LEFT JOIN coupon c ON((c.coupon_id = cp.coupon_id OR cc.coupon_id = c.coupon_id) AND c.status = '1' AND c.date_start < NOW() AND c.date_end > NOW())
               `;
 
   sql += ` WHERE p.status = '1' AND pd.language = '${reqLanguage}'`;
@@ -164,7 +164,7 @@ exports.getProducts = async (filters) => {
   sql += ` GROUP BY p.product_id`;
 
   if (sort) {
-    sql += ` ORDER BY p.${sort} ${direction}`;
+    sql += ` ORDER BY pd.${sort} ${direction}`;
   }
 
   sql += ` LIMIT ${_start}, ${_limit}`;

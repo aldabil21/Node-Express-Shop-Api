@@ -7,15 +7,16 @@ const {
   updateProduct,
   deleteProduct,
 } = require("../controllers/product");
-const { productSchema } = require("../validators/product");
+const { productSchema, queryVal } = require("../validators/product");
 const authorize = require("../middlewares/authorize");
+const { query } = require("express-validator");
 
 router.use(authorize);
 
 //@route    GET
 //@access   ADMIN
 //@desc     GET All Products
-router.get("/", getProducts);
+router.get("/", queryVal, getProducts);
 
 //@route    GET
 //@access   ADMIN

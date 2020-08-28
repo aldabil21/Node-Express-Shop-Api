@@ -1,4 +1,5 @@
 const i18next = require("../i18next");
+const { loadLanguages } = require("../models/settings");
 
 const languegeSetter = (req, res, next) => {
   // const haveReqLang = req.headers["content-language"];
@@ -6,8 +7,8 @@ const languegeSetter = (req, res, next) => {
   // if (haveReqLang && isIncluded) {
   //   req.i18n.changeLanguage(req.headers["content-language"]);
   // }
-
   const detectedLng = req.locale;
+  console.log(detectedLng);
   res.cookie("locale", detectedLng, {
     expires: new Date(Date.now() + 24 * 30 * 12 * 60 * 60 * 1000),
     httpOnly: true,
