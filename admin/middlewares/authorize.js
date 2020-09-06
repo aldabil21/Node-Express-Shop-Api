@@ -13,13 +13,12 @@ const authorize = async (req, res, next) => {
     }
 
     //Try from cookie
-    if (!token && req.cookies && req.cookies.user) {
-      const cookie = JSON.parse(req.cookies.user);
-      token = cookie.token;
+    if (!token && req.cookies && req.cookies.token) {
+      // const cookie = JSON.parse(req.cookies.token);
+      token = req.cookies.token;
     }
-    // console.log(req.headers);
+
     if (!token) {
-      //keep using guestId
       throw new ErrorResponse(401, i18next.t("common:invalid_credentials"));
     }
     //Decode token

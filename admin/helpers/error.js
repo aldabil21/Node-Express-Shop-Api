@@ -1,4 +1,5 @@
 const { validationResult } = require("express-validator");
+const i18next = require("../../i18next");
 
 class ErrorResponse extends Error {
   constructor(statusCode, message, data) {
@@ -10,7 +11,11 @@ class ErrorResponse extends Error {
   static validateRequest = (req) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      throw new ErrorResponse(422, "Validation Error...", errors.array());
+      throw new ErrorResponse(
+        422,
+        i18next.t("common:validation_error"),
+        errors.array()
+      );
     }
   };
 }

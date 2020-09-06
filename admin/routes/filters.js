@@ -5,6 +5,7 @@ const {
   addFilter,
   updateFilter,
   deleteFilter,
+  rawAutocomplete,
 } = require("../controllers/filters");
 const { filterSchema } = require("../validators/filter");
 const authorize = require("../middlewares/authorize");
@@ -30,5 +31,10 @@ router.put("/:id", filterSchema, updateFilter);
 //@access   ADMIN
 //@desc     Delete Filter
 router.delete("/:id", deleteFilter);
+
+//@route    GET
+//@access   ADMIN
+//@desc     GET All filters (raw auto-complete)
+router.get("/autocomplete", rawAutocomplete);
 
 module.exports = router;

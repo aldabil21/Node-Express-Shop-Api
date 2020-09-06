@@ -1,9 +1,4 @@
-const {
-  checkSchema,
-  sanitizeQuery,
-  check,
-  query,
-} = require("express-validator");
+const { checkSchema, query } = require("express-validator");
 const i18next = require("../../i18next");
 
 const languageChecker = {
@@ -23,6 +18,7 @@ const quantityChecker = {
 
 const priceChecker = {
   in: ["body"],
+
   isCurrency: {
     errorMessage: "Must be a valid price. eg: 99.99",
   },
@@ -35,6 +31,9 @@ const priceChecker = {
 exports.productSchema = checkSchema({
   quantity: quantityChecker,
   description: {
+    customSanitizer: {
+      options: (value) => JSON.parse(value),
+    },
     isArray: {
       errorMessage: "Product description must be an array",
     },
@@ -49,9 +48,6 @@ exports.productSchema = checkSchema({
   "description.*.title": {
     in: ["body"],
     trim: true,
-    notEmpty: {
-      errorMessage: "Please enter a title",
-    },
     isLength: {
       errorMessage: "Must be between 3 and 255 letter",
       options: { min: 3, max: 255 },
@@ -59,9 +55,9 @@ exports.productSchema = checkSchema({
   },
   "description.*.description": {
     in: ["body"],
-    notEmpty: {
-      errorMessage: "Please enter a description",
-    },
+    // notEmpty: {
+    //   errorMessage: "Please enter a description",
+    // },
   },
   price: priceChecker,
   points: {
@@ -72,22 +68,22 @@ exports.productSchema = checkSchema({
   tax_id: {
     in: ["body"],
     toInt: true,
-    notEmpty: {
-      errorMessage: "Must choose a tax type",
+    customSanitizer: {
+      options: (value) => (value > 0 ? value : 0),
     },
   },
   weight: {
     in: ["body"],
     toInt: true,
-    notEmpty: {
-      errorMessage: "Must choose a tax type",
+    customSanitizer: {
+      options: (value) => (value > 0 ? value : 0),
     },
   },
   subtract: {
     in: ["body"],
     toInt: true,
-    notEmpty: {
-      errorMessage: "Must choose a subtract type",
+    customSanitizer: {
+      options: (value) => (value > 0 ? value : 0),
     },
   },
   minimum: {
@@ -101,7 +97,6 @@ exports.productSchema = checkSchema({
   maximum: {
     in: ["body"],
     toInt: true,
-    errorMessage: "Must be a number",
     customSanitizer: {
       options: (value) => (!parseInt(value) ? null : value),
     },
@@ -121,6 +116,9 @@ exports.productSchema = checkSchema({
   },
   options: {
     in: ["body"],
+    customSanitizer: {
+      options: (value) => JSON.parse(value),
+    },
     errorMessage: "Options Must be an Array",
     isArray: true,
   },
@@ -138,18 +136,34 @@ exports.productSchema = checkSchema({
     },
     custom: languageChecker,
   },
+  "options.*.description.*.title": {
+    in: ["body"],
+    isLength: {
+      errorMessage: "Must be between 3 and 16 letter",
+      options: { min: 3, max: 16 },
+    },
+  },
   category: {
     in: ["body"],
+    customSanitizer: {
+      options: (value) => JSON.parse(value),
+    },
     errorMessage: "Categories must be an Array",
     isArray: true,
   },
   filter: {
     in: ["body"],
+    customSanitizer: {
+      options: (value) => JSON.parse(value),
+    },
     errorMessage: "Filters must be an Array",
     isArray: true,
   },
   attribute: {
     in: ["body"],
+    customSanitizer: {
+      options: (value) => JSON.parse(value),
+    },
     errorMessage: "Attributes must be an Array",
     isArray: true,
   },
@@ -157,7 +171,7 @@ exports.productSchema = checkSchema({
     in: ["body"],
     toInt: true,
     notEmpty: {
-      errorMessage: "Must choose a subtract type",
+      errorMessage: "Must choose an attribute",
     },
   },
   "attribute.*.description": {
@@ -172,8 +186,18 @@ exports.productSchema = checkSchema({
     },
     custom: languageChecker,
   },
+  "attribute.*.description.*.description": {
+    in: ["body"],
+    isLength: {
+      errorMessage: "At least 3 letters",
+      options: { min: 3 },
+    },
+  },
   wholesales: {
     in: ["body"],
+    customSanitizer: {
+      options: (value) => JSON.parse(value),
+    },
     errorMessage: "Wholesale prices must be an Array",
     isArray: true,
   },

@@ -6,10 +6,11 @@ const {
   addProduct,
   updateProduct,
   deleteProduct,
+  switchStatus,
 } = require("../controllers/product");
 const { productSchema, queryVal } = require("../validators/product");
 const authorize = require("../middlewares/authorize");
-const { query } = require("express-validator");
+const upload = require("../helpers/multer");
 
 router.use(authorize);
 
@@ -26,12 +27,17 @@ router.get("/:id", getProduct);
 //@route    POST
 //@access   ADMIN
 //@desc     ADD Product
-router.post("/", productSchema, addProduct);
+router.post("/", upload.array("image"), productSchema, addProduct);
 
 //@route    PUT
 //@access   ADMIN
 //@desc     Update Product
-router.put("/:id", productSchema, updateProduct);
+router.put("/:id", upload.array("image"), productSchema, updateProduct);
+
+//@route    PATCH
+//@access   ADMIN
+//@desc     Switch product status
+router.patch("/:id", queryVal, switchStatus);
 
 //@route    DELETE
 //@access   ADMIN

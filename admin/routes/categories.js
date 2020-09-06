@@ -5,6 +5,7 @@ const {
   addCategory,
   updateCategory,
   deleteCategory,
+  rawAutocomplete,
 } = require("../controllers/categories");
 const { categorySchema } = require("../validators/category");
 const authorize = require("../middlewares/authorize");
@@ -30,5 +31,10 @@ router.put("/:id", categorySchema, updateCategory);
 //@access   ADMIN
 //@desc     Delete category
 router.delete("/:id", deleteCategory);
+
+//@route    GET
+//@access   ADMIN
+//@desc     GET All categories (raw auto-complete)
+router.get("/autocomplete", rawAutocomplete);
 
 module.exports = router;

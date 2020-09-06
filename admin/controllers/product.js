@@ -82,8 +82,14 @@ exports.getProducts = async (req, res, next) => {
 //@desc     Add Products
 exports.addProduct = async (req, res, next) => {
   try {
+    const { body } = req;
+
+    if (!req.files.length) {
+      throw new ErrorResponse(422, i18next.t("product:image_err"));
+    }
+    body.image = req.files.map((img) => img.path).join(",");
     ErrorResponse.validateRequest(req);
-    const product = await Product.addProduct(req.body);
+    const product = await Product.addProduct(body);
     res.status(201).json({ success: true, data: product });
   } catch (err) {
     next(err);
@@ -97,8 +103,19 @@ exports.updateProduct = async (req, res, next) => {
   const { id } = req.params;
 
   try {
+    const { body } = req;
+
+    //Mix prev images with new uploaded
+    const prevs = JSON.parse(body.prevImgs);
+    body.image = [...prevs, ...req.files.map((img) => img.path)].join(",");
+    delete body.prevImgs;
+
+    if (!body.image.length) {
+      throw new ErrorResponse(422, i18next.t("product:image_err"));
+    }
+
     ErrorResponse.validateRequest(req);
-    const product = await Product.updateProduct(req.body, id);
+    const product = await Product.updateProduct(body, id);
 
     res.status(200).json({ success: true, data: product });
   } catch (err) {
@@ -115,6 +132,21 @@ exports.deleteProduct = async (req, res, next) => {
   try {
     const deletedId = await Product.deleteProduct(id);
     res.status(200).json({ success: true, data: deletedId });
+  } catch (err) {
+    next(err);
+  }
+};
+
+//@route    PATCH
+//@access   ADMIN
+//@desc     Switch product status
+exports.switchStatus = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    const _status = await Product.switchStatus(id, status);
+    res.status(200).json({ success: true, data: _status });
   } catch (err) {
     next(err);
   }

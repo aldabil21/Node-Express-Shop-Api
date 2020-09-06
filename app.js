@@ -1,8 +1,9 @@
 const express = require("express");
 const cookieParser = require("cookie-parser");
+const PORT = process.env.PORT || 5000;
+const path = require("path");
 const { guestId } = require("./middlewares/guestId");
 const { settingsLoader } = require("./helpers/settings");
-const PORT = process.env.PORT || 5000;
 const { errorHandler, error404 } = require("./middlewares/error");
 const cors = require("./middlewares/cors");
 
@@ -10,6 +11,9 @@ const cors = require("./middlewares/cors");
 settingsLoader().then(() => {
   //App
   const app = express();
+
+  //Statics
+  app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
   //Parsers
   app.use(express.json());
@@ -55,12 +59,16 @@ settingsLoader().then(() => {
   const specials = require("./admin/routes/specials");
   const filters = require("./admin/routes/filters");
   const categories = require("./admin/routes/categories");
+  const tax = require("./admin/routes/tax");
+  const attribute = require("./admin/routes/attribute");
   app.use("/api/v1/admin/auth", admin);
   app.use("/api/v1/admin/products", adminProducts);
   app.use("/api/v1/admin/products", specials);
   app.use("/api/v1/admin/filters", filters);
   app.use("/api/v1/admin/categories", categories);
   app.use("/api/v1/admin/coupons", coupon);
+  app.use("/api/v1/admin/tax", tax);
+  app.use("/api/v1/admin/attributes", attribute);
 
   //Error handlers
   app.use(error404);

@@ -12,5 +12,6 @@
   "somthing_went_wrong": "Somthing went wrong!",
   "fail_to_authenticate": "Authenticate Fail. Please sign in again.",
   "signin_credintials_incorrect": "Invalid Credintials",
-  "account_disabled": "Account is disabled"
+  "account_disabled": "Account is disabled",
+  "validation_error": "Please review fields in red color"
 }

@@ -148,22 +148,24 @@ exports.deleteFilter = async (filter_id) => {
   return +filter_id;
 };
 
-exports.getAllRaw = async () => {
-  let sql = `SELECT f.filter_id, f.parent_id, f.sort_order, f.status, fd.title
+exports.getAllRaw = async (q) => {
+  const query = q || "";
+
+  let sql = `SELECT f.filter_id, f.parent_id, f.sort_order, f.status, fd.title, dparent.title AS parent
   from filter f 
   LEFT JOIN filter_description fd ON(f.filter_id = fd.filter_id)
-  WHERE fd.language = '${reqLanguage}'
+  LEFT JOIN filter fparent ON(fparent.filter_id = f.parent_id)
+  LEFT JOIN filter_description dparent ON(fparent.filter_id = dparent.filter_id AND dparent.language = '${reqLanguage}')
+  WHERE fd.language = '${reqLanguage}' AND fd.title LIKE '%${query}%'
   ORDER BY CASE WHEN f.parent_id = 0 THEN f.filter_id ELSE f.parent_id END, f.parent_id, f.filter_id`;
 
   const [filters, _c] = await db.query(sql);
-  const divider = i18next.dir(reqLanguage) === "rtl" ? "<" : ">";
-  let currentParent = "";
+
+  const divider = ">";
   for (const fil of filters) {
-    if (fil.parent_id === 0) {
-      currentParent = fil.title;
-      continue;
+    if (fil.parent) {
+      fil.title = `${fil.parent} ${divider} ${fil.title}`;
     }
-    fil.title = `${currentParent} ${divider} ${fil.title}`;
   }
 
   return filters;

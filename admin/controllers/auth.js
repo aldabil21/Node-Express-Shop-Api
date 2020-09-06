@@ -60,13 +60,16 @@ exports.signin = async (req, res, next) => {
     ErrorResponse.validateRequest(req);
 
     const token = await Admin.signin(data);
+    const locale = req.locale || i18next.language;
+    const languages = i18next.options.supportedLngs.filter(
+      (lng) => lng !== "cimode"
+    );
+
     //clear guest cookie + add token cookie
     res.clearCookie("guest");
     res.cookie("token", token, tokenCookieOptions);
 
-    res
-      .status(200)
-      .json({ success: true, data: { token, locale: i18next.language } });
+    res.status(200).json({ success: true, data: { token, locale, languages } });
   } catch (err) {
     next(err);
   }
@@ -86,12 +89,15 @@ exports.initApp = async (req, res, next) => {
     //return same token
     const token = req.headers.authorization.split(" ")[1];
     const locale = req.locale || i18next.language;
+    const languages = i18next.options.supportedLngs.filter(
+      (lng) => lng !== "cimode"
+    );
 
     //clear guest cookie + add token cookie
     res.clearCookie("guest");
     res.cookie("token", token, tokenCookieOptions);
 
-    res.status(200).json({ success: true, data: { token, locale } });
+    res.status(200).json({ success: true, data: { token, locale, languages } });
   } catch (err) {
     next(err);
   }

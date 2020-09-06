@@ -38,6 +38,10 @@ exports.getProduct = async (product_id, includes = fullVer) => {
   let result = product[0];
 
   if (result && result.product_id) {
+    //images
+    result.image = result.image.split(",");
+
+    //Tax
     const calculateTax =
       Settings.getSetting("config", "tax_status").tax_status === "1";
     if (calculateTax) {
@@ -164,7 +168,11 @@ exports.getProducts = async (filters) => {
   sql += ` GROUP BY p.product_id`;
 
   if (sort) {
-    sql += ` ORDER BY pd.${sort} ${direction}`;
+    let selector = "p";
+    if (sort === "title") {
+      selector = "pd";
+    }
+    sql += ` ORDER BY ${selector}.${sort} ${direction}`;
   }
 
   sql += ` LIMIT ${_start}, ${_limit}`;
@@ -211,7 +219,7 @@ exports.getProducts = async (filters) => {
       products.push({
         product_id: product.product_id,
         quantity: product.quantity,
-        image: product.image,
+        image: product.image.split(","),
         price: +price,
         special: +special,
         currency: currency || "",

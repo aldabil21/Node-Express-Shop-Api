@@ -15,19 +15,115 @@ const fullVer = [
 const shortVer = ["categories", "filters"];
 
 exports.getProduct = async (product_id, includes = fullVer) => {
-  let sql = `SELECT p.product_id, p.quantity, p.image, p.price, ps.price AS special, p.points, p.tax_id, t.value AS tax_value,
-              p.available_at, p.view, p.sold, p.weight, pd.title, pd.description, pd.tags, pd.meta_title, pd.meta_description, pd.meta_keywords,
-              p.minimum, p.maximum, c.code AS coupon_code, c.amount AS coupon_amount, c.type AS coupon_type FROM product p
-              LEFT JOIN product_category pc ON(pc.product_id = p.product_id)
-              LEFT JOIN category cat ON(pc.category_id = cat.category_id)
-              LEFT JOIN product_description pd ON(p.product_id = pd.product_id)
-              LEFT JOIN product_special ps ON(p.product_id = ps.product_id AND ps.deadline > NOW() AND ps.status = '1')
-              LEFT JOIN tax t ON(p.tax_id = t.tax_id AND t.status = '1')
-              LEFT JOIN coupon_product cp ON(cp.product_id = p.product_id)
-              LEFT JOIN coupon_category cc ON(cc.category_id = pc.category_id)
-              LEFT JOIN coupon c ON((c.coupon_id = cp.coupon_id OR cc.coupon_id = c.coupon_id) AND c.status = '1' AND c.date_start < NOW() AND c.date_end > NOW())
-              WHERE p.product_id = '${product_id}' AND pd.language = '${reqLanguage}' AND p.status = '1' AND cat.status = '1' ORDER BY ps.price, -c.amount
-              `;
+  let sql = `
+  SELECT p.*,
+  CONCAT(
+  '[',
+    GROUP_CONCAT(
+      DISTINCT
+      JSON_OBJECT("language", pd.language, "title", pd.title, "description",pd.description, "tags", pd.tags, "meta_title", pd.meta_title, "meta_description", pd.meta_description, "meta_keywords", pd.meta_keywords)
+      )
+  ,']'
+  )
+  AS description,
+  CONCAT(
+  '[',
+  GROUP_CONCAT(
+    DISTINCT
+      CASE WHEN pc.category_id IS NOT NULL THEN
+      JSON_OBJECT("id", pc.category_id, "title", cd.title, "status",c.status)
+      ELSE
+      ""
+      END
+      )
+  ,']'
+  )
+  AS categories,
+  CONCAT(
+  '[',
+    GROUP_CONCAT(
+      DISTINCT
+      CASE WHEN pf.filter_id IS NOT NULL THEN
+      JSON_OBJECT("id", pf.filter_id, "title", fd.title, "status",f.status)
+      ELSE
+      ""
+      END
+      )
+  ,']'
+  )
+  AS filters,
+  CONCAT(
+  '[',
+    GROUP_CONCAT(
+      DISTINCT
+      CASE WHEN po.option_id IS NOT NULL THEN
+      JSON_OBJECT(
+        "option_id", po.option_id,
+        "quantity", po.quantity,
+        "price", po.price,
+        "description", CONCAT(
+          '[',
+          (SELECT GROUP_CONCAT(DISTINCT JSON_OBJECT("language",language, "title", title)) FROM option_description WHERE option_id = po.option_id)
+          ,']'
+          )
+        )
+        ELSE
+        ""
+        END
+      )
+  ,']'
+  )
+  AS options,
+  CONCAT(
+  '[',
+    GROUP_CONCAT(
+      DISTINCT
+      CASE WHEN ad.attribute_id IS NOT NULL THEN
+      JSON_OBJECT(
+        "attribute", JSON_OBJECT("attribute_id", ad.attribute_id, "title", ad.title),
+        "description", CONCAT(
+          '[',
+            (SELECT GROUP_CONCAT(DISTINCT JSON_OBJECT("language",language, "description", description)) AS a FROM product_attribute WHERE attribute_id = pa.attribute_id)
+          ,']'
+          )
+        )
+        ELSE
+        ""
+        END
+      )
+  ,']'
+  )
+  AS attributes,
+  CONCAT(
+  '[',
+    GROUP_CONCAT(
+      DISTINCT
+      CASE WHEN pw.quantity IS NOT NULL THEN
+      JSON_OBJECT(
+        "quantity", pw.quantity,
+        "price", pw.price
+        )
+        ELSE
+        ""
+        END
+      )
+  ,']'
+  )
+  AS wholesales
+  FROM product p
+  LEFT JOIN product_description pd ON(p.product_id = pd.product_id)
+  LEFT JOIN product_category pc ON(pc.product_id = p.product_id)
+  LEFT JOIN category_description cd ON(pc.category_id = cd.category_id AND cd.language = '${reqLanguage}')
+  LEFT JOIN category c ON(pc.category_id = c.category_id)
+  LEFT JOIN product_filter pf ON(pf.product_id = p.product_id)
+  LEFT JOIN filter_description fd ON(fd.filter_id = pf.filter_id AND fd.language = '${reqLanguage}')
+  LEFT JOIN filter f ON(pf.filter_id = f.filter_id)
+  LEFT JOIN product_option po ON(po.product_id = p.product_id)
+  LEFT JOIN product_attribute pa ON(pa.product_id = p.product_id AND pa.language = '${reqLanguage}')
+  LEFT JOIN attribute_description ad ON(ad.attribute_id = pa.attribute_id AND ad.language = '${reqLanguage}')
+  LEFT JOIN product_wholesale pw ON(pw.product_id = p.product_id)
+  WHERE p.product_id = '${product_id}'
+  `;
 
   const [product, _] = await db.query(sql);
 
@@ -41,69 +137,27 @@ exports.getProduct = async (product_id, includes = fullVer) => {
   let result = product[0];
 
   if (result && result.product_id) {
-    const calculateTax =
-      Settings.getSetting("config", "tax_status").tax_status === "1";
-    if (calculateTax) {
-      result.price = Tax.calculate(result.tax_value, result.price);
-      result.special = Tax.calculate(result.tax_value, result.special);
-    }
-
-    //Currency
-    const currConfig = Settings.getSetting("config", "currency").currency;
-    const currency = i18next.t(`common:${currConfig}`);
-    result.currency = currency || "";
-
-    if (includes.includes("categories")) {
-      //get categories
-      const categories = await this.getProductCategories(result.product_id);
-      result.categories = categories;
-    }
-    if (includes.includes("options")) {
-      //Get options
-      const options = await this.getProductOptions(result.product_id);
-      if (calculateTax) {
-        for (const op of options) {
-          op.price = Tax.calculate(result.tax_value, op.price);
-        }
+    //Parsin values (maria db 10.2 does not support JSON_OBJECTAGG)
+    result.description = JSON.parse(result.description);
+    result.categories = JSON.parse(result.categories);
+    result.filters = JSON.parse(result.filters);
+    result.options = JSON.parse(result.options);
+    result.attributes = JSON.parse(result.attributes);
+    result.wholesales = JSON.parse(result.wholesales);
+    if (result.options.length) {
+      for (const op of result.options) {
+        op.description = JSON.parse(op.description);
       }
-      result.options = options;
     }
-    if (includes.includes("attributes")) {
-      //Get attributes
-      const attributes = await this.getProductAttributes(result.product_id);
-      result.attributes = attributes;
-    }
-    if (includes.includes("wholesales")) {
-      //get wholesale_prices
-      const wholesales = await this.getProductWholesales(result.product_id);
-      if (calculateTax) {
-        for (const wholesale of wholesales) {
-          wholesale.price = Tax.calculate(result.tax_value, wholesale.price);
-        }
+    if (result.attributes.length) {
+      for (const att of result.attributes) {
+        att.description = JSON.parse(att.description);
       }
-      result.wholesales = wholesales;
     }
-    if (includes.includes("filters")) {
-      //get filters
-      const filters = await this.getProductFilters(result.product_id);
-      result.filters = filters;
-    }
-
-    //Coupon info
-    let coupon = "";
-    if (result.coupon_code) {
-      let type = "%";
-      if (result.coupon_type === "F") {
-        type = currency;
-      }
-      coupon = `${i18next.t("common:discount")} ${
-        result.coupon_amount
-      }${type} - ${i18next.t("common:use_coupon")}: ${result.coupon_code} `;
-    }
-    result.coupon = coupon;
-    delete result.coupon_code;
-    delete result.coupon_amount;
-    delete result.coupon_type;
+    //images
+    result.image = result.image.split(",");
+  } else {
+    result = null;
   }
 
   return result;
@@ -161,7 +215,7 @@ exports.getProducts = async (filters) => {
   }
 
   if (q) {
-    sql += ` AND CONCAT_WS(pd.title, pd.tags, p.product_id ) LIKE '%${q}%'`;
+    sql += ` AND CONCAT_WS(pd.title, pd.tags, p.product_id, p.price, p.points) LIKE '%${q}%'`;
   }
 
   sql += ` GROUP BY p.product_id`;
@@ -221,7 +275,7 @@ exports.getProducts = async (filters) => {
       products.push({
         product_id: product.product_id,
         quantity: product.quantity,
-        image: product.image,
+        image: product.image.split(","),
         price: +price,
         special: +special,
         currency: currency || "",
@@ -416,12 +470,11 @@ exports.updateProduct = withTransaction(
     //update descriptions
     if (description && description.length > 0) {
       for (let desc of description) {
-        await transaction.query(
-          `UPDATE product_description SET ? WHERE product_id = '${product_id}' AND language = '${desc.language}'`,
-          {
-            ...desc,
-          }
-        );
+        await transaction.query(`REPLACE INTO product_description SET ?`, {
+          product_id: product_id,
+          language: desc.language,
+          ...desc,
+        });
       }
     }
     //Update category
@@ -602,6 +655,14 @@ exports.addViewCount = (product_id, currentView) => {
   db.query(`UPDATE product SET ? WHERE product_id = '${product_id}'`, {
     view: ++currentView,
   });
+};
+
+exports.switchStatus = async (product_id, status) => {
+  await db.query(`UPDATE product SET ? WHERE product_id = '${product_id}'`, {
+    status: status,
+  });
+
+  return status;
 };
 
 ////Reference

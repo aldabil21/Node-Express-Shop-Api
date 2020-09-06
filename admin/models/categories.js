@@ -142,23 +142,24 @@ exports.deleteCategory = async (category_id) => {
   return +category_id;
 };
 
-exports.getAllRaw = async () => {
-  let sql = `SELECT c.category_id, c.image, c.parent_id, c.sort_order, c.status, cd.title
-  from category c 
+exports.getAllRaw = async (q) => {
+  const query = q || "";
+
+  let sql = `SELECT c.category_id, c.image, c.parent_id, c.sort_order, c.status, cd.title, dparent.title AS parent
+  FROM category c 
   LEFT JOIN category_description cd ON(c.category_id = cd.category_id)
-  WHERE cd.language = '${reqLanguage}'
+  LEFT JOIN category cparent ON(cparent.category_id = c.parent_id)
+  LEFT JOIN category_description dparent ON(cparent.category_id = dparent.category_id AND dparent.language = '${reqLanguage}')
+  WHERE cd.language = '${reqLanguage}' AND cd.title LIKE '%${query}%'
   ORDER BY CASE WHEN c.parent_id = 0 THEN c.category_id ELSE c.parent_id END, c.parent_id, c.category_id`;
 
   const [categories, _c] = await db.query(sql);
 
   const divider = ">";
-  let currentParent = "";
   for (const cat of categories) {
-    if (cat.parent_id === 0) {
-      currentParent = cat.title;
-      continue;
+    if (cat.parent) {
+      cat.title = `${cat.parent} ${divider} ${cat.title}`;
     }
-    cat.title = `${currentParent} ${divider} ${cat.title}`;
   }
 
   return categories;

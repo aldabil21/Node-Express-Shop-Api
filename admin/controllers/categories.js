@@ -97,3 +97,17 @@ exports.deleteCategory = async (req, res, next) => {
     next(err);
   }
 };
+
+//@route    GET
+//@access   ADMIN
+//@desc     GET All categories (raw auto-complete)
+exports.rawAutocomplete = async (req, res, next) => {
+  const { q } = req.query;
+  try {
+    const categories = await Categories.getAllRaw(q);
+
+    res.status(200).json({ success: true, data: categories });
+  } catch (err) {
+    next(err);
+  }
+};

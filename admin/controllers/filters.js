@@ -94,3 +94,17 @@ exports.deleteFilter = async (req, res, next) => {
     next(err);
   }
 };
+
+//@route    GET
+//@access   ADMIN
+//@desc     GET All Filters (raw auto-complete)
+exports.rawAutocomplete = async (req, res, next) => {
+  const { q } = req.query;
+  try {
+    const filters = await Filters.getAllRaw(q);
+
+    res.status(200).json({ success: true, data: filters });
+  } catch (err) {
+    next(err);
+  }
+};
