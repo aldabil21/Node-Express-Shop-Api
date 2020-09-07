@@ -9,7 +9,7 @@ const languegeSetter = (req, res, next) => {
   const detectedLng = req.locale;
   // console.log(detectedLng);
   res.cookie("locale", detectedLng, {
-    expires: new Date(Date.now() + 24 * 30 * 12 * 60 * 60 * 1000),
+    expires: new Date(Date.now() + 24 * 30 * 12 * 60 * 60 * 1000), // About a year
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
   });

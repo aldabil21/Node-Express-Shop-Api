@@ -14,6 +14,11 @@ router.use(authorize);
 
 //@route    GET
 //@access   ADMIN
+//@desc     GET All filters (raw auto-complete)
+router.get("/autocomplete", rawAutocomplete);
+
+//@route    GET
+//@access   ADMIN
 //@desc     GET All filters (with auto-complete)
 router.get("/", getAllFilters);
 
@@ -31,10 +36,5 @@ router.put("/:id", filterSchema, updateFilter);
 //@access   ADMIN
 //@desc     Delete Filter
 router.delete("/:id", deleteFilter);
-
-//@route    GET
-//@access   ADMIN
-//@desc     GET All filters (raw auto-complete)
-router.get("/autocomplete", rawAutocomplete);
 
 module.exports = router;

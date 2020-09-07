@@ -11,7 +11,7 @@ exports.getParentCategories = async (data) => {
   const _start = (_page - 1) * _limit;
 
   let sql = `SELECT c.category_id, c.image, c.parent_id, c.sort_order, c.status, cd.title,
-            cd.description, cd.meta_title, cd.meta_description, cd.meta_keyword
+            cd.description, cd.meta_title, cd.meta_description, cd.meta_keywords
             from category c 
             LEFT JOIN category_description cd ON(c.category_id = cd.category_id)
             WHERE c.parent_id ='0' AND cd.language = '${reqLanguage}' AND cd.title LIKE '%${q}%'
@@ -29,7 +29,7 @@ exports.getParentCategories = async (data) => {
 
 exports.getChildCategories = async (parent_id) => {
   let sql = `SELECT c.category_id, c.image, c.parent_id, c.sort_order, c.status, cd.title,
-  cd.description, cd.meta_title, cd.meta_description, cd.meta_keyword
+  cd.description, cd.meta_title, cd.meta_description, cd.meta_keywords
   from category c
   LEFT JOIN category_description cd ON(c.category_id = cd.category_id)
   WHERE c.parent_id ='${parent_id}' AND cd.language = '${reqLanguage}'
@@ -54,7 +54,7 @@ exports.getTotalCategories = async (data) => {
 
 exports.getCategory = async (category_id, withChildren = true) => {
   let sql = `SELECT c.category_id, c.image, c.parent_id, c.sort_order, c.status, cd.title,
-  cd.description, cd.meta_title, cd.meta_description, cd.meta_keyword
+  cd.description, cd.meta_title, cd.meta_description, cd.meta_keywords
   FROM category c
   LEFT JOIN category_description cd ON(c.category_id = cd.category_id)
   WHERE c.category_id ='${category_id}' AND cd.language = '${reqLanguage}'
@@ -66,6 +66,34 @@ exports.getCategory = async (category_id, withChildren = true) => {
   }
 
   return category[0];
+};
+
+exports.getCategoryForEdit = async (category_id) => {
+  let sql = `SELECT c.category_id, c.image, c.parent_id, c.sort_order, c.status,
+  CONCAT(
+  '[',
+    GROUP_CONCAT(
+      DISTINCT
+      JSON_OBJECT("language", cd.language, "title", cd.title, "description", cd.description, "meta_title", cd.meta_title, "meta_description", cd.meta_description, "meta_keywords", cd.meta_keywords)
+      )
+  ,']'
+  )
+  AS description
+  FROM category c
+  LEFT JOIN category_description cd ON(c.category_id = cd.category_id)
+  WHERE c.category_id ='${category_id}'
+  `;
+
+  const [category, fields] = await db.query(sql);
+
+  let result = category[0];
+  if (result && result.category_id) {
+    result.description = JSON.parse(result.description);
+  } else {
+    result = null;
+  }
+
+  return result;
 };
 
 exports.addCategory = withTransaction(async (transaction, body) => {
@@ -163,6 +191,14 @@ exports.getAllRaw = async (q) => {
   }
 
   return categories;
+};
+
+exports.switchStatus = async (category_id, status) => {
+  await db.query(`UPDATE category SET ? WHERE category_id = '${category_id}'`, {
+    status: status,
+  });
+
+  return status;
 };
 
 exports.isIncludingProducts = async (prodIds = []) => {

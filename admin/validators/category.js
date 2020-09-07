@@ -15,6 +15,9 @@ exports.categorySchema = checkSchema({
     },
   },
   description: {
+    customSanitizer: {
+      options: (value) => JSON.parse(value),
+    },
     isArray: {
       errorMessage: "Category description must be an array",
     },
