@@ -170,3 +170,39 @@ exports.getAllRaw = async (q) => {
 
   return filters;
 };
+
+exports.getFilterForEdit = async (filter_id) => {
+  let sql = `SELECT f.filter_id, f.parent_id, f.sort_order, f.status,
+  CONCAT(
+  '[',
+    GROUP_CONCAT(
+      DISTINCT
+      JSON_OBJECT("language", fd.language, "title", fd.title)
+      )
+  ,']'
+  )
+  AS description
+  FROM filter f
+  LEFT JOIN filter_description fd ON(f.filter_id = fd.filter_id)
+  WHERE f.filter_id ='${filter_id}'
+  `;
+
+  const [filter, fields] = await db.query(sql);
+
+  let result = filter[0];
+  if (result && result.filter_id) {
+    result.description = JSON.parse(result.description);
+  } else {
+    result = null;
+  }
+
+  return result;
+};
+
+exports.switchStatus = async (filter_id, status) => {
+  await db.query(`UPDATE filter SET ? WHERE filter_id = '${filter_id}'`, {
+    status: status,
+  });
+
+  return status;
+};

@@ -27,11 +27,13 @@ exports.getAllFilters = async (req, res, next) => {
     const filters = await Filters.getParentFilters(data);
     const totalCount = await Filters.getTotalFilters(data);
     let pagination;
-    if (filters.length && expand === "children") {
+    if (expand === "children") {
       //get filter children
       //Add pagination only in expand mode, otherwise will only get all parents
-      for (const filter of filters) {
-        filter.children = await Filters.getChildFilters(filter.filter_id);
+      if (filters.length) {
+        for (const filter of filters) {
+          filter.children = await Filters.getChildFilters(filter.filter_id);
+        }
       }
       pagination = {
         totalCount,
@@ -42,6 +44,28 @@ exports.getAllFilters = async (req, res, next) => {
     }
 
     res.status(200).json({ success: true, data: { filters, pagination } });
+  } catch (err) {
+    next(err);
+  }
+};
+
+//@route    GET
+//@access   ADMIN
+//@desc     GET Filter by ID
+exports.getFilter = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const filter = await Filters.getFilterForEdit(id);
+
+    if (!filter) {
+      throw new ErrorResponse(
+        404,
+        i18next.t("filter:filter_not_found", { id: id })
+      );
+    }
+
+    res.status(200).json({ success: true, data: filter });
   } catch (err) {
     next(err);
   }
@@ -104,6 +128,21 @@ exports.rawAutocomplete = async (req, res, next) => {
     const filters = await Filters.getAllRaw(q);
 
     res.status(200).json({ success: true, data: filters });
+  } catch (err) {
+    next(err);
+  }
+};
+
+//@route    PATCH
+//@access   ADMIN
+//@desc     Switch filter status
+exports.switchStatus = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    const _status = await Filters.switchStatus(id, status);
+    res.status(200).json({ success: true, data: _status });
   } catch (err) {
     next(err);
   }
