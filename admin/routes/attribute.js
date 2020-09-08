@@ -3,12 +3,13 @@ const router = express.Router();
 const {
   getAttributes,
   autocomplete,
-  //   getTax,
-  //   addTax,
-  //   updateTax,
-  //   deleteTax,
+  getAttribute,
+  addAttribute,
+  updateAttribute,
+  deleteAttribute,
+  switchStatus,
 } = require("../controllers/attribute");
-// const { taxSchema } = require("../validators/tax");
+const { attributeSchema } = require("../validators/attribute");
 const authorize = require("../middlewares/authorize");
 
 router.use(authorize);
@@ -23,24 +24,29 @@ router.get("/autocomplete", autocomplete);
 //@desc     Get All Attributes
 router.get("/", getAttributes);
 
-// //@route    GET
-// //@access   ADMIN
-// //@desc     Get Tax by ID
-// router.get("/", getTax);
+//@route    GET
+//@access   ADMIN
+//@desc     Get Attribute by ID
+router.get("/:id", getAttribute);
 
-// //@route    POST
-// //@access   ADMIN
-// //@desc     Add Tax
-// router.post("/", taxSchema, addTax);
+//@route    POST
+//@access   ADMIN
+//@desc     Add Attribute
+router.post("/", attributeSchema, addAttribute);
 
-// //@route    PUT
-// //@access   ADMIN
-// //@desc     Update Tax
-// router.put("/:id", taxSchema, updateTax);
+//@route    PUT
+//@access   ADMIN
+//@desc     Edit Attribute
+router.put("/:id", attributeSchema, updateAttribute);
 
-// //@route    DELETE
-// //@access   ADMIN
-// //@desc     Delete Tax
-// router.delete("/:id", deleteTax);
+//@route    PATCH
+//@access   ADMIN
+//@desc     Switch attribute status
+router.patch("/:id", switchStatus);
+
+//@route    DELETE
+//@access   ADMIN
+//@desc     Delete Attribute
+router.delete("/:id", deleteAttribute);
 
 module.exports = router;

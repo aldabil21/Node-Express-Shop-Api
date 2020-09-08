@@ -20,7 +20,7 @@ languageLoader().then(() => {
       backend: {
         loadPath: "locales/{{lng}}/{{ns}}.json",
       },
-      ns: ["common", "product", "cart", "category"],
+      ns: ["common", "product", "cart", "category", "attribute", "coupon"],
       defaultNS: ["common"],
       // interpolation: {
       //   escapeValue: false, //careful XSS

@@ -1,5 +1,6 @@
 const Filters = require("../models/filters");
 const ErrorResponse = require("../helpers/error");
+const i18next = require("../../i18next");
 
 //@route    GET
 //@access   Admin
@@ -111,7 +112,7 @@ exports.deleteFilter = async (req, res, next) => {
   const { id } = req.params;
 
   try {
-    await Filters.getFilter(id, false);
+    // await Filters.getFilter(id, false);
     const deletedId = await Filters.deleteFilter(id);
     res.status(200).json({ success: true, data: deletedId });
   } catch (err) {
