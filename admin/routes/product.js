@@ -7,12 +7,18 @@ const {
   updateProduct,
   deleteProduct,
   switchStatus,
+  rawAutocomplete,
 } = require("../controllers/product");
 const { productSchema, queryVal } = require("../validators/product");
 const authorize = require("../middlewares/authorize");
 const upload = require("../helpers/multer");
 
 router.use(authorize);
+
+//@route    GET
+//@access   ADMIN
+//@desc     GET All products (raw auto-complete)
+router.get("/autocomplete", rawAutocomplete);
 
 //@route    GET
 //@access   ADMIN

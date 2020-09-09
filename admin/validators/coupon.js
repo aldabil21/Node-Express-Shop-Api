@@ -41,8 +41,8 @@ exports.couponSchema = checkSchema({
       errorMessage: "Please enter a code",
     },
     isLength: {
-      errorMessage: "Must be between 4 and 20 letter",
-      options: { min: 4, max: 20 },
+      errorMessage: "Must be between 3 and 10 letter",
+      options: { min: 3, max: 10 },
     },
   },
   type: {

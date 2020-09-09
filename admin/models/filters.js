@@ -14,7 +14,13 @@ exports.getParentFilters = async (data) => {
   from filter f 
   LEFT JOIN filter_description fd ON(f.filter_id = fd.filter_id)
   WHERE f.parent_id ='0' AND fd.language = '${reqLanguage}' AND fd.title LIKE '%${q}%'
-  ORDER BY f.${sort} ${direction}`;
+  `;
+
+  let sorter = "f";
+  if (sort === "title") {
+    sorter = "fd";
+  }
+  sql += ` ORDER BY ${sorter}.${sort} ${direction}`;
 
   if (expand) {
     //Add limit & pagination only in expand mode

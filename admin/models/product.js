@@ -665,6 +665,23 @@ exports.switchStatus = async (product_id, status) => {
   return status;
 };
 
+exports.getAllRaw = async (q) => {
+  const query = q || "";
+
+  let sql = `SELECT p.product_id, p.image, p.price, p.status, pd.title
+  FROM product p 
+  LEFT JOIN product_description pd ON(p.product_id = pd.product_id)
+  WHERE pd.language = '${reqLanguage}' AND CONCAT_WS(pd.title, pd.tags, p.product_id) LIKE '%${query}%'
+  `;
+
+  const [products, _c] = await db.query(sql);
+
+  for (const prod of products) {
+    prod.image = prod.image.split(",");
+  }
+  return products;
+};
+
 ////Reference
 // exports.getProductsSingleQuery = async (filters) => {
 //   const { language, category, filter, page, sort, direction } = filters;

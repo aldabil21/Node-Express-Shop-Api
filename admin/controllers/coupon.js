@@ -106,3 +106,18 @@ exports.deleteCoupon = async (req, res, next) => {
     next(err);
   }
 };
+
+//@route    PATCH
+//@access   ADMIN
+//@desc     Switch coupon status
+exports.switchStatus = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    const _status = await Coupon.switchStatus(id, status);
+    res.status(200).json({ success: true, data: _status });
+  } catch (err) {
+    next(err);
+  }
+};

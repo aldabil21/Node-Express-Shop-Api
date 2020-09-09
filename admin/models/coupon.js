@@ -11,8 +11,8 @@ exports.getCoupons = async (data) => {
   const _start = (_page - 1) * _limit;
   const sorting = sort || "date_added";
 
-  let sql = `SELECT *
-  from coupon c
+  let sql = `SELECT *, (SELECT COUNT(*) FROM coupon_history WHERE coupon_id = c.coupon_id) AS used
+  FROM coupon c
   WHERE CONCAT_WS(c.title, c.code, c.amount) LIKE '%${q}%'
   ORDER BY c.${sorting} ${direction} LIMIT ${_start}, ${_limit}`;
 
@@ -182,4 +182,12 @@ exports.deleteCoupon = async (coupon_id) => {
   }
 
   return +coupon_id;
+};
+
+exports.switchStatus = async (coupon_id, status) => {
+  await db.query(`UPDATE coupon SET ? WHERE coupon_id = '${coupon_id}'`, {
+    status: status,
+  });
+
+  return status;
 };

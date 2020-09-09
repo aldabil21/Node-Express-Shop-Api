@@ -137,6 +137,19 @@ exports.deleteProduct = async (req, res, next) => {
   }
 };
 
+//@route    GET
+//@access   ADMIN
+//@desc     GET All products (raw auto-complete)
+exports.rawAutocomplete = async (req, res, next) => {
+  const { q } = req.query;
+  try {
+    const products = await Product.getAllRaw(q);
+    res.status(200).json({ success: true, data: products });
+  } catch (err) {
+    next(err);
+  }
+};
+
 //@route    PATCH
 //@access   ADMIN
 //@desc     Switch product status

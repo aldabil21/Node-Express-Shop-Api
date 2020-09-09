@@ -15,7 +15,13 @@ exports.getParentCategories = async (data) => {
             from category c 
             LEFT JOIN category_description cd ON(c.category_id = cd.category_id)
             WHERE c.parent_id ='0' AND cd.language = '${reqLanguage}' AND cd.title LIKE '%${q}%'
-            ORDER BY c.${sort} ${direction}`;
+            `;
+
+  let sorter = "c";
+  if (sort === "title") {
+    sorter = "cd";
+  }
+  sql += ` ORDER BY ${sorter}.${sort} ${direction}`;
 
   if (expand) {
     //Add limit & pagination only in expand mode

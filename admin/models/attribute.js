@@ -27,7 +27,14 @@ exports.getAttributes = async (data) => {
   let sql = `SELECT * FROM attribute a
   LEFT JOIN attribute_description ad ON(a.attribute_id = ad.attribute_id)
   WHERE ad.language = '${reqLanguage}' AND ad.title LIKE '%${q}%'
-  ORDER BY a.${sorting} ${direction} LIMIT ${_start}, ${_limit}`;
+  `;
+
+  let sorter = "a";
+  if (sort === "title") {
+    sorter = "ad";
+  }
+  sql += ` ORDER BY ${sorter}.${sort} ${direction}`;
+  sql += ` LIMIT ${_start}, ${_limit}`;
 
   const [attributes, fields] = await db.query(sql);
 

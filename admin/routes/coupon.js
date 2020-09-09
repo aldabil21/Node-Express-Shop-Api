@@ -6,6 +6,7 @@ const {
   addCoupon,
   updateCoupon,
   deleteCoupon,
+  switchStatus,
 } = require("../controllers/coupon");
 const { couponSchema } = require("../validators/coupon");
 const authorize = require("../middlewares/authorize");
@@ -31,6 +32,11 @@ router.post("/", couponSchema, addCoupon);
 //@access   ADMIN
 //@desc     Update Coupon
 router.put("/:id", couponSchema, updateCoupon);
+
+//@route    PUT
+//@access   ADMIN
+//@desc     Switch Coupon status
+router.patch("/:id", switchStatus);
 
 //@route    DELETE
 //@access   ADMIN
