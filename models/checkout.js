@@ -108,6 +108,7 @@ exports.addOrder = withTransaction(async (transaction, data) => {
     total: brutto.value,
     order_status_id: 0,
     tracking: "",
+    tracking_company: "",
   };
   const lat = address ? address.location.x : "";
   const lng = address ? address.location.y : "";
@@ -129,9 +130,8 @@ exports.addOrder = withTransaction(async (transaction, data) => {
 
   //Insert cart ptoducts
   for (const product of cartItems.products) {
-    const price = withTax
-      ? Tax.deCalculate(product.price, product.tax_value)
-      : product.price;
+    const _price = product.special ? product.special : product.price; //If special or original
+    const price = withTax ? Tax.deCalculate(_price, product.tax_value) : _price;
     const tax = Tax.pure(price, product.tax_value) * product.quantity;
 
     await transaction.query(`INSERT INTO order_products SET ?`, {
@@ -143,6 +143,7 @@ exports.addOrder = withTransaction(async (transaction, data) => {
       price: +price,
       total: +price * product.quantity,
       tax: tax,
+      price_code: product.price_code,
     });
   }
 
@@ -196,9 +197,12 @@ exports.updateOrder = withTransaction(async (transaction, data) => {
     city: address ? address.city : "",
     address_id: address_id || 0,
     payment_method: payment_method || "",
+    charge_id: "",
+    tap_status: "",
     total: brutto.value,
     order_status_id: 0,
     tracking: "",
+    tracking_company: "",
   };
   const lat = address && address.location ? address.location.x : "";
   const lng = address && address.location ? address.location.y : "";
@@ -217,9 +221,8 @@ exports.updateOrder = withTransaction(async (transaction, data) => {
     `DELETE FROM order_products WHERE order_id = '${order_id}'`
   );
   for (const product of cartItems.products) {
-    const price = withTax
-      ? Tax.deCalculate(product.price, product.tax_value)
-      : product.price;
+    const _price = product.special ? product.special : product.price; //If special or original
+    const price = withTax ? Tax.deCalculate(_price, product.tax_value) : _price;
     const tax = Tax.pure(price, product.tax_value) * product.quantity;
 
     await transaction.query(`INSERT INTO order_products SET ?`, {
@@ -231,6 +234,7 @@ exports.updateOrder = withTransaction(async (transaction, data) => {
       price: +price,
       total: +price * product.quantity,
       tax: tax,
+      price_code: product.price_code,
     });
   }
 
@@ -287,6 +291,7 @@ exports.getProducts = async (order_id) => {
       price: +prod.price,
       total: +prod.total,
       tax: +prod.tax,
+      price_code: prod.price_code,
       currency,
     };
   });
@@ -421,14 +426,17 @@ exports.confirm = withTransaction(async (transaction, data) => {
 
   const initialStatus = 3; //Could be from settings
 
-  //Change order status/total
+  //Change order status/total/Inv_no according to this confirmation time
   const orderNewTotal = await getTotalsSum(order_id);
-
+  const invoice_no = `INV${format(new Date(), "yyMMdd")}${order_id}`;
   const [order, _o] = await transaction.query(
     `UPDATE orders SET ? WHERE order_id = '${order_id}'`,
     {
       order_status_id: initialStatus,
+      invoice_no: invoice_no,
       total: orderNewTotal,
+      date_added: new Date(), //This is the real date-time of order
+      date_modified: new Date(),
     }
   );
 
@@ -439,6 +447,7 @@ exports.confirm = withTransaction(async (transaction, data) => {
       order_id,
       order_status_id: initialStatus,
       comment: comment || "",
+      date_added: new Date(),
     }
   );
 

@@ -296,7 +296,11 @@ exports.confirmCheckout = async (req, res, next) => {
     //if COD
     if (payment === "cod") {
       //OR if(!card_id) then payment is COD. //TODO: check max allowed total for COD (to be addded)
-      const codData = { order_id, user_id, comment: "" };
+      const codData = {
+        order_id,
+        user_id,
+        comment: i18next.t("cart:initial_order_comment"),
+      };
       await Checkout.confirm(codData);
     } else if (payment === "credit_card") {
       //Deal later

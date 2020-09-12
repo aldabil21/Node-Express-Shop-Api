@@ -1,4 +1,5 @@
 const Admin = require("../models/admin");
+const Settings = require("../models/settings");
 const ErrorResponse = require("../helpers/error");
 const i18next = require("../../i18next");
 // const { resGuestIdCookie } = require("../middlewares/guestId");
@@ -64,12 +65,16 @@ exports.signin = async (req, res, next) => {
     const languages = i18next.options.supportedLngs.filter(
       (lng) => lng !== "cimode"
     );
-
+    const siteName = Settings.getSetting("config", "site_name").site_name;
+    const settings = {
+      languages: languages,
+      siteName: siteName,
+    };
     //clear guest cookie + add token cookie
     res.clearCookie("guest");
     res.cookie("token", token, tokenCookieOptions);
 
-    res.status(200).json({ success: true, data: { token, locale, languages } });
+    res.status(200).json({ success: true, data: { token, locale, settings } });
   } catch (err) {
     next(err);
   }
@@ -92,12 +97,15 @@ exports.initApp = async (req, res, next) => {
     const languages = i18next.options.supportedLngs.filter(
       (lng) => lng !== "cimode"
     );
-
+    const siteName = Settings.getSetting("config", "site_name").site_name;
+    const settings = {
+      languages: languages,
+      siteName: siteName,
+    };
     //clear guest cookie + add token cookie
     res.clearCookie("guest");
     res.cookie("token", token, tokenCookieOptions);
-
-    res.status(200).json({ success: true, data: { token, locale, languages } });
+    res.status(200).json({ success: true, data: { token, locale, settings } });
   } catch (err) {
     next(err);
   }

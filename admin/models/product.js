@@ -351,6 +351,17 @@ exports.addProduct = withTransaction(async (transaction, body) => {
   delete body.attribute;
   delete body.wholesales;
 
+  // if options exists, this function should decied the product total quantity automaticlly
+  // to avoid user mistaked which may lead to option.quantity > product.quantity
+  // which can cuz "cart_change_notice" when trying to add to cart a specific option that has higher quantity than product.quantity
+  if (options && options.length > 0) {
+    const { calculatedQty, lowestPrice } = calculateProductQuantityANDPrice(
+      options
+    );
+    body.quantity = calculatedQty;
+    body.price = lowestPrice;
+  }
+
   //insert product
   const [product, fields] = await transaction.query(
     "INSERT INTO product SET ?",
@@ -451,6 +462,17 @@ exports.updateProduct = withTransaction(
     delete body.filter;
     delete body.attribute;
     delete body.wholesales;
+
+    // if options exists, this function should decied the product total quantity and product price automaticlly
+    // to avoid user mistaks which may lead to option.quantity > product.quantity OR lowest option.price !== product.price
+    // which can cuz "cart_change_notice" when trying to add to cart a specific option that has higher quantity than product.quantity
+    if (options && options.length > 0) {
+      const { calculatedQty, lowestPrice } = calculateProductQuantityANDPrice(
+        options
+      );
+      body.quantity = calculatedQty;
+      body.price = lowestPrice;
+    }
 
     //update product
     const [product, fields] = await transaction.query(
@@ -682,51 +704,14 @@ exports.getAllRaw = async (q) => {
   return products;
 };
 
-////Reference
-// exports.getProductsSingleQuery = async (filters) => {
-//   const { language, category, filter, page, sort, direction } = filters;
-
-//   const _page = page > 0 ? page : 1;
-//   const _limit = 20;
-//   const _start = (_page - 1) * _limit;
-
-//   let sql = `SELECT p.product_id, p.quantity, p.image, p.price, MIN(ps.price) AS special, p.points, p.tax_id, p.available_at,
-//               pd.title, pd.description, pd.tags, pd.meta_title, pd.meta_description, pd.meta_keywords,
-//               GROUP_CONCAT(DISTINCT fd.title) AS filters, GROUP_CONCAT(DISTINCT cd.title) AS categories
-//               FROM product p
-//               LEFT JOIN product_description pd ON(p.product_id = pd.product_id)
-//               LEFT JOIN product_category pc ON(p.product_id = pc.product_id)
-//               LEFT JOIN category_description cd ON (pc.category_id = cd.category_id AND cd.language = '${reqLanguage}')
-//               LEFT JOIN product_filter pf ON(p.product_id = pf.product_id)
-//               LEFT JOIN filter_description fd ON (pf.filter_id = fd.filter_id AND fd.language = '${reqLanguage}')
-//               LEFT JOIN product_special ps ON(p.product_id = ps.product_id AND ps.deadline > NOW() AND ps.status = '1')
-//               `;
-
-//   sql += ` WHERE p.status = '1' AND pd.language = '${reqLanguage}'`;
-
-//   if (category) {
-//     category.split(",").forEach((cat, i) => {
-//       const op = i === 0 ? "AND" : "OR";
-//       sql += ` ${op} pc.category_id = '${cat}'`;
-//     });
-//   }
-
-//   if (filter) {
-//     filter.split(",").forEach((cat, i) => {
-//       const op = i === 0 ? "AND" : "OR";
-//       sql += ` ${op} pf.filter_id = '${cat}'`;
-//     });
-//   }
-
-//   sql += ` GROUP BY p.product_id`;
-
-//   if (sort) {
-//     sql += ` ORDER BY p.${sort} ${direction}`;
-//   }
-
-//   sql += ` LIMIT ${_start}, ${_limit}`;
-
-//   const [products, fields] = await db.query(sql);
-
-//   return products;
-// };
+const calculateProductQuantityANDPrice = (options) => {
+  let calculatedQty = 0;
+  let lowestPrice = options[0].price;
+  for (const op of options) {
+    calculatedQty += op.quantity;
+    if (op.price < lowestPrice) {
+      lowestPrice = op.price;
+    }
+  }
+  return { calculatedQty, lowestPrice };
+};

@@ -43,6 +43,7 @@ exports.getCart = async (data) => {
       let price = productInfo.price;
       let special = productInfo.special;
       let option = "";
+      let price_code = "regular";
 
       //set price to option price if exist
       if (item.option_id) {
@@ -58,6 +59,7 @@ exports.getCart = async (data) => {
         }
         price = selectedOption.price;
         option = selectedOption.title;
+        price_code = "optionprice";
       }
 
       //set price to wholesale price if exist
@@ -65,13 +67,17 @@ exports.getCart = async (data) => {
         for (const wholesale of productInfo.wholesales) {
           if (item.quantity >= wholesale.quantity) {
             price = wholesale.price;
+            price_code = "wholesaleprice";
           }
         }
       }
 
-      //omit special if price got lower cuz of wholesales or option.
+      //omit special if price got lower than special price due to wholesales or option.
       if (+special >= +price) {
         special = null;
+      } else if (+special > 0 && +special < +price) {
+        // Adjust price_code if needed
+        price_code = "specialprice";
       }
 
       const cartItem = {
@@ -82,6 +88,7 @@ exports.getCart = async (data) => {
         title: productInfo.title,
         weight: productInfo.weight,
         price: price,
+        price_code: price_code,
         tax_value: productInfo.tax_value,
         special: special,
         currency: productInfo.currency,
@@ -130,7 +137,7 @@ exports.getTotals = async (cartItems = []) => {
 
     if (withTax) {
       //Deduct tax from product price if it was included (if tax setting was enabled), for correct neto/tax calculation
-      //It was decied to always show detail prices in all interefaces (cart, checkout, order)
+      //It was decied to always show detail prices (separated net, tax, and total) in all interefaces (cart, checkout, order)
       thisPrice = Tax.deCalculate(thisPrice, prod.tax_value);
     }
 
@@ -249,6 +256,13 @@ exports.add = async (data) => {
     throw new ErrorResponse(
       404,
       i18next.t("product:product_not_available", { product: product_id })
+    );
+  }
+
+  if (product.options.length && !option_id) {
+    throw new ErrorResponse(
+      422,
+      i18next.t("product:must_select_option", { product: product_id })
     );
   }
 
