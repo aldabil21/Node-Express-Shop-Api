@@ -114,10 +114,17 @@ exports.getOrder = async (order_id) => {
 
     CONCAT('[',
         GROUP_CONCAT(DISTINCT
+          CASE WHEN ot.code != 'brutto' THEN
             JSON_OBJECT(
             "text", ot.text,
             "value", ot.value
             )
+            ELSE
+            JSON_OBJECT(
+              "text", ot.text,
+              "value", (SELECT CAST(SUM(value) AS DOUBLE) FROM order_totals WHERE order_id = '${order_id}' AND code != 'brutto')
+              )
+            END
             ORDER BY ot.sort_order
         )
     ,']') AS totals,
@@ -139,7 +146,7 @@ exports.getOrder = async (order_id) => {
     LEFT JOIN order_status os ON(o.order_status_id = os.order_status_id AND os.language = '${reqLanguage}')
     LEFT JOIN user u ON(o.user_id = u.user_id)
     LEFT JOIN order_products op ON(op.order_id = o.order_id)
-    LEFT JOIN order_totals ot ON(ot.order_id = o.order_id AND ot.code != 'brutto')
+    LEFT JOIN order_totals ot ON(ot.order_id = o.order_id)
     LEFT JOIN order_history oh ON(oh.order_id = o.order_id)
     LEFT JOIN order_status hs ON(oh.order_status_id = hs.order_status_id AND hs.language = '${reqLanguage}')
     LEFT JOIN user_point up ON(o.order_id = up.order_id AND up.points >= 0)
@@ -155,13 +162,6 @@ exports.getOrder = async (order_id) => {
     order.products = JSON.parse(order.products);
     order.totals = JSON.parse(order.totals);
     order.history = JSON.parse(order.history);
-
-    //Add brutto after deduction
-    let brutto = 0;
-    for (const total of order.totals) {
-      brutto += total.value;
-    }
-    order.totals.push({ text: i18next.t("common:brutto"), value: brutto });
 
     //TODO: to include human readable payment methods in db query - settings adding payment methods with names (ex: payment_method_description table)
     order.payment_method = i18next.t(`cart:${order.payment_method}`);

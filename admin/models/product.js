@@ -5,16 +5,7 @@ const withTransaction = require("../helpers/withTransaction");
 const ErrorResponse = require("../helpers/error");
 const i18next = require("../../i18next");
 
-const fullVer = [
-  "categories",
-  "filters",
-  "options",
-  "attributes",
-  "wholesales",
-];
-const shortVer = ["categories", "filters"];
-
-exports.getProduct = async (product_id, includes = fullVer) => {
+exports.getProduct = async (product_id) => {
   let sql = `
   SELECT p.*,
   CONCAT(
@@ -445,7 +436,7 @@ exports.addProduct = withTransaction(async (transaction, body) => {
   }
 
   await transaction.commit();
-  return this.getProduct(product.insertId, shortVer);
+  return this.getProduct(product.insertId);
 });
 
 exports.updateProduct = withTransaction(
@@ -591,7 +582,7 @@ exports.updateProduct = withTransaction(
     }
 
     await transaction.commit();
-    return this.getProduct(product_id, shortVer);
+    return this.getProduct(product_id);
   }
 );
 

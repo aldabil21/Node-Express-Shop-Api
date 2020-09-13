@@ -116,7 +116,7 @@ exports.findOne = async (email, cellphone) => {
 
   if (cellphone) {
     if (email) {
-      sql += ` AND`;
+      sql += ` OR`;
     }
     const { country_code, mobile } = cellphone;
     sql += ` country_code = '${country_code}' AND mobile = '${mobile}'`;

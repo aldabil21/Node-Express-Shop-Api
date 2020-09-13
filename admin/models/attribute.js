@@ -33,7 +33,7 @@ exports.getAttributes = async (data) => {
   if (sort === "title") {
     sorter = "ad";
   }
-  sql += ` ORDER BY ${sorter}.${sort} ${direction}`;
+  sql += ` ORDER BY ${sorter}.${sorting} ${direction}`;
   sql += ` LIMIT ${_start}, ${_limit}`;
 
   const [attributes, fields] = await db.query(sql);

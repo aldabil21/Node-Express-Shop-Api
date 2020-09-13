@@ -63,6 +63,7 @@ settingsLoader().then(() => {
   const tax = require("./admin/routes/tax");
   const attribute = require("./admin/routes/attribute");
   const orders = require("./admin/routes/orders");
+  const users = require("./admin/routes/users");
   app.use("/api/v1/admin/auth", admin);
   app.use("/api/v1/admin/products", adminProducts);
   app.use("/api/v1/admin/products", specials);
@@ -72,6 +73,7 @@ settingsLoader().then(() => {
   app.use("/api/v1/admin/tax", tax);
   app.use("/api/v1/admin/attributes", attribute);
   app.use("/api/v1/admin/orders", orders);
+  app.use("/api/v1/admin/users", users);
 
   //Error handlers
   app.use(error404);
