@@ -1,7 +1,6 @@
 const db = require("../../config/db");
-const withTransaction = require("../helpers/withTransaction");
+const Settings = require("./settings");
 const i18next = require("../../i18next");
-const ErrorResponse = require("../helpers/error");
 
 exports.getUsers = async (data) => {
   const { q, page, perPage, sort, direction } = data;
@@ -9,31 +8,39 @@ exports.getUsers = async (data) => {
   const _page = page > 0 ? page : 1;
   const _limit = perPage;
   const _start = (_page - 1) * _limit;
-  const sorting = sort || "date_added";
+  let sorting = sort || "date_added";
   const query = q || "";
 
+  //Currency
+  const currConfig = Settings.getSetting("config", "currency").currency;
+  const curr = i18next.t(`common:${currConfig}`);
+  const currency = curr || "";
+
   let sql = `SELECT u.user_id, CONCAT(u.firstname,' ',u.lastname) AS name, u.email, CONCAT('(',u.country_code,')',u.mobile) AS mobile,
-  u.status, u.date_added
+  u.status, u.date_added, COUNT(DISTINCT o.order_id) AS orders,
+  (CASE WHEN SUM(DISTINCT o.total) IS NOT NULL THEN CONCAT(CAST(SUM(DISTINCT o.total) AS DOUBLE),' ','${currency}') ELSE CONCAT(0,' ', '${currency}') END) AS total,
+  (CASE WHEN SUM(DISTINCT p.points) IS NOT NULL THEN CAST(SUM(DISTINCT p.points) AS INTEGER) ELSE 0 END) AS points
   FROM user u
+  LEFT JOIN orders o ON(o.user_id = u.user_id)
+  LEFT JOIN user_point p ON(p.user_id = u.user_id)
   WHERE CONCAT_WS(u.firstname, u.lastname, CONCAT(u.firstname,' ',u.lastname), CONCAT(u.country_code,u.mobile)) LIKE '%${query}%'
+  GROUP BY u.user_id
   `;
 
-  sql += ` ORDER BY u.${sorting} ${direction}`;
+  let sorter = `u.${sorting}`;
+  if (
+    sorting === "total" ||
+    sorting === "orders" ||
+    sorting === "points" ||
+    sorting === "name"
+  ) {
+    sorter = sorting;
+  }
+
+  sql += ` ORDER BY ${sorter} ${direction}`;
   sql += ` LIMIT ${_start}, ${_limit}`;
 
   const [users, fields] = await db.query(sql);
-
-  if (users.length) {
-    for (const user of users) {
-      const { orders_total, purchases_total } = await getUserOrdersInfo(
-        user.user_id
-      );
-      const points = await getCurrentTotalPoints(user.user_id);
-      user.orders_total = orders_total;
-      user.purchases_total = purchases_total;
-      user.points = points;
-    }
-  }
 
   return users;
 };
@@ -54,32 +61,4 @@ exports.switchStatus = async (user_id, status) => {
   });
 
   return status;
-};
-
-const getUserOrdersInfo = async (user_id) => {
-  const [query, _] = await db.query(`
-  SELECT CAST(SUM(total) AS DOUBLE) AS total, COUNT(order_id) AS orders from orders WHERE user_id = '${user_id}'
-  `);
-
-  let info = {
-    purchases_total: 0,
-    orders_total: 0,
-  };
-  if (query.length) {
-    info.purchases_total = query[0].total || 0;
-    info.orders_total = query[0].orders || 0;
-  }
-  return info;
-};
-
-const getCurrentTotalPoints = async (user_id) => {
-  let sql = `SELECT SUM(points) AS total from user_point WHERE user_id = '${user_id}'`;
-
-  const [totals, fields] = await db.query(sql);
-  let total = 0;
-  if (totals.length) {
-    total = +totals[0].total;
-  }
-
-  return total;
 };
