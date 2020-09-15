@@ -28,6 +28,7 @@ languageLoader().then(() => {
         "attribute",
         "coupon",
         "order",
+        "settings",
       ],
       defaultNS: ["common"],
       // interpolation: {

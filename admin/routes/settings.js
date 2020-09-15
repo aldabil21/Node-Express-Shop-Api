@@ -6,12 +6,12 @@ const authorize = require("../middlewares/authorize");
 
 router.use(authorize);
 
-// @route    POST
+// @route    GET
 // @access   ADMIN
 // @desc     Get General settings
 router.get("/", getGenerals);
 
-// @route    POST
+// @route    PUT
 // @access   ADMIN
 // @desc     Update General Settings
 router.put("/", multer.single("logo"), updateGenerals);

@@ -8,29 +8,6 @@ exports.getGenerals = async () => {
 
   const [settings, _] = await db.query(sql);
 
-  // let site = [];
-  // let tax = [];
-  // let payments = [];
-  // let points = [];
-
-  // for (const set of query) {
-  //   if (set.key_id.startsWith("site_")) {
-  //     site.push(set);
-  //   } else if (set.key_id.startsWith("tax_")) {
-  //     tax.push(set);
-  //   } else if (set.key_id.startsWith("points_")) {
-  //     points.push(set);
-  //   } else if (set.code.startsWith("payment_methods")) {
-  //     payments.push(set);
-  //   }
-  // }
-
-  // const settings = {
-  //   site,
-  //   tax,
-  //   payments,
-  //   points,
-  // };
   return settings;
 };
 
@@ -44,7 +21,7 @@ exports.updateGenerals = async (data) => {
   const [settings, _] = await db.query(sql, [values]);
 
   //Reload App settings & refresh global values
-  const reloadAppSettings = await settingsLoader();
+  await settingsLoader();
 
   return this.getGenerals();
 };

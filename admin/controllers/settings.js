@@ -2,7 +2,7 @@ const Settings = require("../models/settings");
 const i18next = require("../../i18next");
 const ErrorResponse = require("../helpers/error");
 
-// @route    POST
+// @route    GET
 // @access   ADMIN
 // @desc     Get General settings
 exports.getGenerals = async (req, res, next) => {
@@ -14,7 +14,7 @@ exports.getGenerals = async (req, res, next) => {
     next(err);
   }
 };
-// @route    POST
+// @route    PUT
 // @access   ADMIN
 // @desc     Update General Settings
 exports.updateGenerals = async (req, res, next) => {

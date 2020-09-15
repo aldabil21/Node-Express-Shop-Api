@@ -62,9 +62,9 @@ exports.signin = async (req, res, next) => {
 
     const token = await Admin.signin(data);
     const locale = req.locale || i18next.language;
-    const languages = i18next.options.supportedLngs.filter(
-      (lng) => lng !== "cimode"
-    );
+    const languages = AppLanguages.map((lang) => {
+      return { language: lang.language, code: lang.code };
+    });
     const siteName = Settings.getSetting("config", "site_name").site_name;
     const settings = {
       languages: languages,
@@ -94,9 +94,10 @@ exports.initApp = async (req, res, next) => {
     //return same token
     const token = req.headers.authorization.split(" ")[1];
     const locale = req.locale || i18next.language;
-    const languages = i18next.options.supportedLngs.filter(
-      (lng) => lng !== "cimode"
-    );
+    const languages = AppLanguages.map((lang) => {
+      return { language: lang.language, code: lang.code };
+    });
+
     const siteName = Settings.getSetting("config", "site_name").site_name;
     const settings = {
       languages: languages,

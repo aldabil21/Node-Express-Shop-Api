@@ -8,6 +8,7 @@ exports.settingsLoader = async () => {
 // Used when init i18next
 exports.languageLoader = async () => {
   const languages = await Settings.loadLanguages();
+  // console.log(languages);
   global.AppLanguages = languages;
 };
 
