@@ -1,6 +1,6 @@
 const Filters = require("../models/filters");
 const ErrorResponse = require("../helpers/error");
-const i18next = require("../../i18next");
+const { i18next } = require("../../i18next");
 
 //@route    GET
 //@access   Admin

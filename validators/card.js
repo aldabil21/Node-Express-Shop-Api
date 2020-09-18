@@ -1,6 +1,6 @@
 const { checkSchema, body } = require("express-validator");
 const Settings = require("../models/settings");
-const i18next = require("../i18next");
+const { i18next } = require("../i18next");
 
 exports.cardValidator = [
   body("tok_id", i18next.t("cart:card_token_not_correct"))

@@ -1,6 +1,6 @@
 const db = require("../../config/db");
 const Settings = require("./settings");
-const i18next = require("../../i18next");
+const { i18next } = require("../../i18next");
 
 exports.getUsers = async (data) => {
   const { q, page, perPage, sort, direction } = data;

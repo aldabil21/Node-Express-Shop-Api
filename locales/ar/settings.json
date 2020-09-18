@@ -1,3 +1,4 @@
 {
-  "language_not_found": "اللغة رقم {{id}} غير موجودة..."
+  "language_not_found": "اللغة رقم {{id}} غير موجودة...",
+  "at_least_one_enabled": "يجب أن يكون هناك على الأقل لغة واحدة فعالة"
 }

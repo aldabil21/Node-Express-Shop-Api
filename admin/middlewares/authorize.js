@@ -1,7 +1,7 @@
 const jwt = require("jsonwebtoken");
 const Admin = require("../models/admin");
 const ErrorResponse = require("../helpers/error");
-const i18next = require("../../i18next");
+const { i18next } = require("../../i18next");
 
 const authorize = async (req, res, next) => {
   try {

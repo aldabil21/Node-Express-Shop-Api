@@ -1,5 +1,5 @@
 const Languages = require("../models/languages");
-const i18next = require("../../i18next");
+const { i18next } = require("../../i18next");
 const ErrorResponse = require("../helpers/error");
 
 // @route    GET
@@ -61,6 +61,11 @@ exports.updateLanguage = async (req, res, next) => {
       ...req.body,
     };
     ErrorResponse.validateRequest(req);
+
+    if (data.status === 0) {
+      await Languages.checkLeastOneEnabled();
+    }
+
     const languages = await Languages.updateLanguage(data);
 
     res.status(200).json({ sucess: true, data: languages });

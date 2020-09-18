@@ -3,7 +3,7 @@ const Tax = require("./tax");
 const db = require("../../config/db");
 const withTransaction = require("../helpers/withTransaction");
 const ErrorResponse = require("../helpers/error");
-const i18next = require("../../i18next");
+const { i18next } = require("../../i18next");
 
 exports.getProduct = async (product_id) => {
   let sql = `
@@ -74,7 +74,7 @@ exports.getProduct = async (product_id) => {
         "attribute", JSON_OBJECT("attribute_id", ad.attribute_id, "title", ad.title),
         "description", CONCAT(
           '[',
-            (SELECT GROUP_CONCAT(DISTINCT JSON_OBJECT("language",language, "description", description)) AS a FROM product_attribute WHERE attribute_id = pa.attribute_id)
+            (SELECT GROUP_CONCAT(DISTINCT JSON_OBJECT("language",language, "description", description)) AS a FROM product_attribute WHERE attribute_id = pa.attribute_id AND product_id = p.product_id)
           ,']'
           )
         )

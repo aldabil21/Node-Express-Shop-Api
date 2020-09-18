@@ -1,7 +1,7 @@
 const db = require("../config/db");
 const withTransaction = require("../helpers/withTransaction");
 const ErrorResponse = require("../helpers/error");
-const i18next = require("../i18next");
+const { i18next } = require("../i18next");
 
 exports.getParentFilters = async (data) => {
   const { q, page, perPage, sort, direction, expand } = data;

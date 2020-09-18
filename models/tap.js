@@ -2,7 +2,7 @@ const db = require("../config/db");
 const User = require("../models/user");
 const TapAPI = require("../helpers/tapInstance");
 const ErrorResponse = require("../helpers/error");
-const i18next = require("../i18next");
+const { i18next } = require("../i18next");
 
 /**
  * Tap Customer

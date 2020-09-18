@@ -2,7 +2,7 @@ const db = require("../config/db");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const ErrorResponse = require("../helpers/error");
-const i18next = require("../i18next");
+const { i18next } = require("../i18next");
 const crypto = require("crypto");
 
 exports.register = async (data) => {

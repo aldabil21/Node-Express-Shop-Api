@@ -1,7 +1,7 @@
 const Checkout = require("./checkout");
 const Settings = require("./settings");
 const db = require("../config/db");
-const i18next = require("../i18next");
+const { i18next } = require("../i18next");
 const ErrorResponse = require("../helpers/error");
 
 exports.add = async (user_id, order_id, points) => {

@@ -1,5 +1,5 @@
 const ErrorResponse = require("../helpers/error");
-const i18next = require("../../i18next");
+const { i18next } = require("../../i18next");
 
 exports.errorHandler = (err, req, res, next) => {
   //   console.log(err);

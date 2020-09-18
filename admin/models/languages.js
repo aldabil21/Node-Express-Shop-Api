@@ -1,6 +1,6 @@
 const db = require("../../config/db");
 const { languageLoader } = require("../../helpers/settings");
-const i18next = require("../../i18next");
+const { i18next, initi18next } = require("../../i18next");
 const ErrorResponse = require("../helpers/error");
 const withTransaction = require("../helpers/withTransaction");
 
@@ -38,7 +38,7 @@ exports.addLanguage = withTransaction(async (transaction, data) => {
   await transaction.commit();
 
   // Reload App language & refresh global values
-  await languageLoader();
+  await reloadReinitializeI18next();
 
   return getSupportedLanguages();
 });
@@ -65,7 +65,7 @@ exports.updateLanguage = withTransaction(async (transaction, data) => {
   await transaction.commit();
 
   // Reload App language & refresh global values
-  await languageLoader();
+  await reloadReinitializeI18next();
 
   return getSupportedLanguages();
 });
@@ -87,6 +87,9 @@ exports.switchStatus = async (language_id, status) => {
     status: status,
   });
 
+  // Reload App language & refresh global values
+  await reloadReinitializeI18next();
+
   return getSupportedLanguages();
 };
 
@@ -103,6 +106,10 @@ const getSupportedLanguages = async () => {
   let sql = `SELECT language, code from language WHERE status = '1'`;
   const [language, fields] = await db.query(sql);
   return language;
+};
+const reloadReinitializeI18next = async () => {
+  await languageLoader();
+  await initi18next();
 };
 exports.checkLeastOneEnabled = async () => {
   let sql = `SELECT COUNT(*) AS total FROM language WHERE status = '1'`;

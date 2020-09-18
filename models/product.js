@@ -1,7 +1,7 @@
 const Settings = require("./settings");
 const Tax = require("./tax");
 const db = require("../config/db");
-const i18next = require("../i18next");
+const { i18next } = require("../i18next");
 
 const fullVer = [
   "categories",
@@ -12,18 +12,23 @@ const fullVer = [
 ];
 
 exports.getProduct = async (product_id, includes = fullVer) => {
-  let sql = `SELECT p.product_id, p.quantity, p.image, p.price, ps.price AS special, p.points, p.tax_id, t.value AS tax_value,
-              p.available_at, p.view, p.sold, p.weight, pd.title, pd.description, pd.tags, pd.meta_title, pd.meta_description, pd.meta_keywords,
-              p.minimum, p.maximum, c.code AS coupon_code, c.amount AS coupon_amount, c.type AS coupon_type FROM product p
-              LEFT JOIN product_category pc ON(pc.product_id = p.product_id)
-              LEFT JOIN category cat ON(pc.category_id = cat.category_id)
-              LEFT JOIN product_description pd ON(p.product_id = pd.product_id)
-              LEFT JOIN product_special ps ON(p.product_id = ps.product_id AND ps.deadline > NOW() AND ps.status = '1')
-              LEFT JOIN tax t ON(p.tax_id = t.tax_id AND t.status = '1')
-              LEFT JOIN coupon_product cp ON(cp.product_id = p.product_id)
-              LEFT JOIN coupon_category cc ON(cc.category_id = pc.category_id)
-              LEFT JOIN coupon c ON((c.coupon_id = cp.coupon_id OR cc.coupon_id = c.coupon_id) AND c.status = '1' AND c.date_start < NOW() AND c.date_end > NOW())
-              WHERE p.product_id = '${product_id}' AND pd.language = '${reqLanguage}' AND p.status = '1' AND cat.status = '1' ORDER BY ps.price, -c.amount
+  let sql = `
+  SELECT p.product_id, p.quantity, p.image, CAST(p.price AS DOUBLE)AS price,
+  CASE WHEN ps.price IS NOT NULL THEN CAST(ps.price AS DOUBLE) ELSE 0 END AS special, p.points, p.tax_id,
+  CASE WHEN t.value IS NOT NULL THEN CAST(t.value AS DOUBLE) ELSE 0 END AS tax_value,
+  p.available_at, p.view, p.sold, p.weight, pd.title,
+  pd.description, pd.tags, pd.meta_title, pd.meta_description, pd.meta_keywords, p.minimum,
+  CASE WHEN p.maximum IS NOT NULL THEN CAST(p.maximum AS INTEGER) ELSE 0 END AS maximum,
+  c.code AS coupon_code, c.amount AS coupon_amount, c.type AS coupon_type FROM product p
+  LEFT JOIN product_category pc ON(pc.product_id = p.product_id)
+  LEFT JOIN category cat ON(pc.category_id = cat.category_id)
+  LEFT JOIN product_description pd ON(p.product_id = pd.product_id)
+  LEFT JOIN product_special ps ON(p.product_id = ps.product_id AND ps.deadline > NOW() AND ps.status = '1')
+  LEFT JOIN tax t ON(p.tax_id = t.tax_id AND t.status = '1')
+  LEFT JOIN coupon_product cp ON(cp.product_id = p.product_id)
+  LEFT JOIN coupon_category cc ON(cc.category_id = pc.category_id)
+  LEFT JOIN coupon c ON((c.coupon_id = cp.coupon_id OR cc.coupon_id = c.coupon_id) AND c.status = '1' AND c.date_start < NOW() AND c.date_end > NOW())
+  WHERE p.product_id = '${product_id}' AND pd.language = '${reqLanguage}' AND p.status = '1' AND cat.status = '1' ORDER BY ps.price, -c.amount
               `;
 
   const [product, _] = await db.query(sql);
@@ -305,7 +310,7 @@ exports.getProductCategories = async (product_id) => {
 };
 
 exports.getProductOptions = async (product_id) => {
-  let sql = `SELECT po.option_id, po.quantity, po.price, od.title
+  let sql = `SELECT po.option_id, po.quantity, CAST(po.price AS DOUBLE) AS price, od.title
              FROM product_option po
              LEFT JOIN option_description od ON(po.option_id = od.option_id AND od.language = '${reqLanguage}')
              WHERE po.product_id = '${product_id}'`;
@@ -329,7 +334,7 @@ exports.getProductAttributes = async (product_id) => {
 
 exports.getProductWholesales = async (product_id) => {
   const [wholesales, _w] = await db.query(
-    `SELECT id, quantity, price FROM product_wholesale WHERE product_id = ${product_id} ORDER BY quantity`
+    `SELECT id, quantity, CAST(price AS DOUBLE) AS price FROM product_wholesale WHERE product_id = ${product_id} ORDER BY quantity`
   );
 
   return wholesales;

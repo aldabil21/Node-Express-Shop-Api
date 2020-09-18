@@ -1,5 +1,5 @@
 const { param, body, query } = require("express-validator");
-const i18next = require("../../i18next");
+const { i18next } = require("../../i18next");
 const Orders = require("../models/orders");
 const ErrorResponse = require("../helpers/error");
 

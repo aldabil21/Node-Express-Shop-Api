@@ -1,6 +1,6 @@
 const db = require("../../config/db");
 const withTransaction = require("../helpers/withTransaction");
-const i18next = require("../../i18next");
+const { i18next } = require("../../i18next");
 const ErrorResponse = require("../helpers/error");
 
 exports.autocomplete = async (q) => {
@@ -142,10 +142,11 @@ exports.updateAttribute = withTransaction(async (transaction, data) => {
 
   if (description) {
     for (const desc of description) {
-      await transaction.query(
-        `UPDATE attribute_description SET ? WHERE attribute_id = '${attribute_id}' AND language = '${desc.language}'`,
-        desc
-      );
+      await transaction.query(`REPLACE INTO attribute_description SET ? `, {
+        attribute_id: attribute_id,
+        language: desc.language,
+        ...desc,
+      });
     }
   }
 

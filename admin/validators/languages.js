@@ -1,7 +1,7 @@
 const { checkSchema } = require("express-validator");
 const Languages = require("../models/languages");
 const ErrorResponse = require("../helpers/error");
-const i18next = require("../../i18next");
+const { i18next } = require("../../i18next");
 
 exports.languageSchema = checkSchema({
   id: {

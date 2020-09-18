@@ -1,4 +1,4 @@
-const i18next = require("../i18next");
+const { i18next } = require("../i18next");
 
 const languegeSetter = (req, res, next) => {
   // const haveReqLang = req.headers["content-language"];

@@ -30,6 +30,47 @@ exports.getTaxes = async (data) => {
   return taxes;
 };
 
+exports.getById = async (id) => {
+  const [query, _] = await db.query(`SELECT * FROM tax WHERE tax_id = '${id}'`);
+
+  let tax;
+  if (query.length) {
+    tax = query[0];
+  }
+  return tax;
+};
+
+exports.addTax = async (data) => {
+  const [query, _] = await db.query(`INSERT INTO tax SET ?`, data);
+
+  return this.getById(query.insertId);
+};
+
+exports.updateTax = async (data) => {
+  const { id, value, title, status } = data;
+  const [query, _] = await db.query(`UPDATE tax SET ? WHERE tax_id = '${id}'`, {
+    value,
+    title,
+    status,
+  });
+
+  return this.getById(id);
+};
+
+exports.deleteTax = async (id) => {
+  const [query, _] = await db.query(`DELETE FROM tax WHERE tax_id = '${id}'`);
+
+  return +id;
+};
+
+exports.switchStatus = async (tax_id, status) => {
+  await db.query(`UPDATE tax SET ? WHERE tax_id = '${tax_id}'`, {
+    status: status,
+  });
+
+  return status;
+};
+
 exports.calculateAsync = async (tax_id = 0, price = 0) => {
   let sql = `SELECT value from tax WHERE tax_id = '${tax_id}' AND status = '1'`;
 

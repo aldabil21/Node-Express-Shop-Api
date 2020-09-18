@@ -3,10 +3,11 @@ const router = express.Router();
 const {
   getTaxes,
   autocomplete,
-  //   getTax,
-  //   addTax,
-  //   updateTax,
-  //   deleteTax,
+  getTax,
+  addTax,
+  updateTax,
+  deleteTax,
+  switchStatus,
 } = require("../controllers/tax");
 const { taxSchema } = require("../validators/tax");
 const authorize = require("../middlewares/authorize");
@@ -23,24 +24,29 @@ router.get("/autocomplete", autocomplete);
 //@desc     Get All Taxes
 router.get("/", getTaxes);
 
-// //@route    GET
-// //@access   ADMIN
-// //@desc     Get Tax by ID
-// router.get("/", getTax);
+//@route    GET
+//@access   ADMIN
+//@desc     Get Tax by ID
+router.get("/:id", getTax);
 
-// //@route    POST
-// //@access   ADMIN
-// //@desc     Add Tax
-// router.post("/", taxSchema, addTax);
+//@route    POST
+//@access   ADMIN
+//@desc     Add Tax
+router.post("/", taxSchema, addTax);
 
-// //@route    PUT
-// //@access   ADMIN
-// //@desc     Update Tax
-// router.put("/:id", taxSchema, updateTax);
+//@route    PUT
+//@access   ADMIN
+//@desc     Update Tax
+router.put("/:id", taxSchema, updateTax);
 
-// //@route    DELETE
-// //@access   ADMIN
-// //@desc     Delete Tax
-// router.delete("/:id", deleteTax);
+//@route    DELETE
+//@access   ADMIN
+//@desc     Delete Tax
+router.delete("/:id", deleteTax);
+
+//@route    PATCH
+//@access   ADMIN
+//@desc     Switch tax status
+router.patch("/:id", switchStatus);
 
 module.exports = router;

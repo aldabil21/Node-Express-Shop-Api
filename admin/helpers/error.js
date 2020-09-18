@@ -1,5 +1,5 @@
 const { validationResult } = require("express-validator");
-const i18next = require("../../i18next");
+const { i18next } = require("../../i18next");
 
 class ErrorResponse extends Error {
   constructor(statusCode, message, data) {

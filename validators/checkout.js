@@ -1,7 +1,7 @@
 const { checkSchema, body } = require("express-validator");
 const Settings = require("../models/settings");
 const Address = require("../models/address");
-const i18next = require("../i18next");
+const { i18next } = require("../i18next");
 const ErrorResponse = require("../helpers/error");
 
 const paymentIsAvailable = (code) => {

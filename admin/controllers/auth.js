@@ -1,7 +1,7 @@
 const Admin = require("../models/admin");
 const Settings = require("../models/settings");
 const ErrorResponse = require("../helpers/error");
-const i18next = require("../../i18next");
+const { i18next } = require("../../i18next");
 // const { resGuestIdCookie } = require("../middlewares/guestId");
 
 //@route    POST

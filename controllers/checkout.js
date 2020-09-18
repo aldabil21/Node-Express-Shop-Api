@@ -5,7 +5,7 @@ const Point = require("../models/point");
 const Address = require("../models/address");
 const Settings = require("../models/settings");
 const ErrorResponse = require("../helpers/error");
-const i18next = require("../i18next");
+const { i18next } = require("../i18next");
 const { format } = require("date-fns");
 const { default: axios } = require("axios");
 

@@ -1,7 +1,7 @@
 const db = require("../config/db");
 const withTransaction = require("../helpers/withTransaction");
 const ErrorResponse = require("../helpers/error");
-const i18next = require("../i18next");
+const { i18next } = require("../i18next");
 
 exports.getDefault = async (user_id) => {
   let sql = `SELECT DISTINCT * FROM address WHERE user_id = '${user_id}' AND is_primary = '1'`;

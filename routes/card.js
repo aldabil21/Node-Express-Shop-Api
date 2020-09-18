@@ -7,7 +7,7 @@ const {
 } = require("../controllers/card");
 const protected = require("../middlewares/protected");
 const { cardValidator } = require("../validators/card");
-const i18next = require("../i18next");
+const { i18next } = require("../i18next");
 
 router.use(protected);
 

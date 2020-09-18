@@ -1,7 +1,7 @@
 const db = require("../../config/db");
 const withTransaction = require("../helpers/withTransaction");
 const ErrorResponse = require("../helpers/error");
-const i18next = require("../../i18next");
+const { i18next } = require("../../i18next");
 
 exports.getParentCategories = async (data) => {
   const { q, page, perPage, sort, direction, expand } = data;
@@ -146,10 +146,11 @@ exports.updateCategory = withTransaction(async (transaction, data) => {
 
   if (description) {
     for (const desc of description) {
-      await transaction.query(
-        `UPDATE category_description SET ? WHERE category_id = '${category_id}' AND language = '${desc.language}'`,
-        desc
-      );
+      await transaction.query(`REPLACE INTO category_description SET ? `, {
+        category_id: category_id,
+        language: desc.language,
+        ...desc,
+      });
     }
   }
 

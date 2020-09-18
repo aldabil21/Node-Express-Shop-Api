@@ -27,7 +27,7 @@ settingsLoader().then(() => {
   app.use(guestId);
 
   //Language
-  const i18next = require("./i18next");
+  const { i18next } = require("./i18next");
   const i18n = require("i18next-http-middleware");
   const languegeSetter = require("./middlewares/language");
   app.use(i18n.handle(i18next));
@@ -66,6 +66,7 @@ settingsLoader().then(() => {
   const users = require("./admin/routes/users");
   const adminSettings = require("./admin/routes/settings");
   const languages = require("./admin/routes/languages");
+  const shippings = require("./admin/routes/shipping");
   app.use("/api/v1/admin/auth", admin);
   app.use("/api/v1/admin/products", adminProducts);
   app.use("/api/v1/admin/products", specials);
@@ -78,7 +79,7 @@ settingsLoader().then(() => {
   app.use("/api/v1/admin/users", users);
   app.use("/api/v1/admin/settings", adminSettings);
   app.use("/api/v1/admin/languages", languages);
-
+  app.use("/api/v1/admin/shippings", shippings);
   //Error handlers
   app.use(error404);
   app.use(errorHandler);

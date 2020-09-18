@@ -1,3 +1,4 @@
 {
-  "language_not_found": "Language No {{id}} Not Found..."
+  "language_not_found": "Language No {{id}} Not Found...",
+  "at_least_one_enabled": "Must have at least one enabled language"
 }

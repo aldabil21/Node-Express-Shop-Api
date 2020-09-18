@@ -1,7 +1,7 @@
 const db = require("../../config/db");
 const withTransaction = require("../helpers/withTransaction");
 const ErrorResponse = require("../helpers/error");
-const i18next = require("../../i18next");
+const { i18next } = require("../../i18next");
 
 exports.getParentFilters = async (data) => {
   const { q, page, perPage, sort, direction, expand } = data;
@@ -123,10 +123,11 @@ exports.updateFilter = withTransaction(async (transaction, data) => {
 
   if (description) {
     for (const desc of description) {
-      await transaction.query(
-        `UPDATE filter_description SET ? WHERE filter_id = '${filter_id}' AND language = '${desc.language}'`,
-        desc
-      );
+      await transaction.query(`REPLACE INTO filter_description SET ? `, {
+        filter_id: filter_id,
+        language: desc.language,
+        ...desc,
+      });
     }
   }
 

@@ -1,6 +1,6 @@
 const Attribute = require("../models/attribute");
 const ErrorResponse = require("../helpers/error");
-const i18next = require("../../i18next");
+const { i18next } = require("../../i18next");
 
 //@route    GET
 //@access   ADMIN

@@ -5,7 +5,7 @@ const Coupon = require("./coupon");
 const Point = require("./point");
 const Settings = require("./settings");
 const Tax = require("./tax");
-const i18next = require("../i18next");
+const { i18next } = require("../i18next");
 const ErrorResponse = require("../helpers/error");
 const withTransaction = require("../helpers/withTransaction");
 const { format } = require("date-fns");
@@ -97,8 +97,8 @@ exports.addOrder = withTransaction(async (transaction, data) => {
     invoice_no: "",
     firstname: address ? address.firstname : "",
     lastname: address ? address.lastname : "",
-    country_code: address ? address.country_code : "",
-    mobile: address ? address.mobile : "",
+    country_code: address ? address.country_code : 0,
+    mobile: address ? address.mobile : 0,
     line1: address ? address.line1 : "",
     country: address ? address.country : "",
     city: address ? address.city : "",
