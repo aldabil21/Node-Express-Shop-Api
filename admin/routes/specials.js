@@ -9,26 +9,42 @@ const {
 const { specialSchema } = require("../validators/specials");
 const authorize = require("../middlewares/authorize");
 
-router.use(authorize);
-
 //@route    GET
 //@access   ADMIN
 //@desc     Get Product specials
-router.get("/:product_id/specials", getProductSpecials);
+router.get(
+  "/:product_id/specials",
+  authorize(["Owner", "Administrator", "Manager", "Seller"]),
+  getProductSpecials
+);
 
 //@route    POST
 //@access   ADMIN
 //@desc     Add Product special
-router.post("/:product_id/specials", specialSchema, addProductSpecial);
+router.post(
+  "/:product_id/specials",
+  authorize(["Owner", "Administrator", "Manager"]),
+  specialSchema,
+  addProductSpecial
+);
 
 //@route    PUT
 //@access   ADMIN
 //@desc     Update Product special
-router.put("/:product_id/specials/:id", specialSchema, updateProductSpecial);
+router.put(
+  "/:product_id/specials/:id",
+  authorize(["Owner", "Administrator", "Manager"]),
+  specialSchema,
+  updateProductSpecial
+);
 
 //@route    DELETE
 //@access   ADMIN
 //@desc     Delete Product special
-router.delete("/:product_id/specials/:id", deleteProductSpecial);
+router.delete(
+  "/:product_id/specials/:id",
+  authorize(["Owner", "Administrator", "Manager"]),
+  deleteProductSpecial
+);
 
 module.exports = router;

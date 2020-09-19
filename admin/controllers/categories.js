@@ -82,7 +82,7 @@ exports.addCategory = async (req, res, next) => {
   const data = req.body;
   try {
     ErrorResponse.validateRequest(req);
-    data.image = req.file ? req.file.path : "no-photo-thumb.png";
+    data.image = req.file ? req.file.path : "images/no-photo-thumb.png";
 
     const category = await Categories.addCategory(data);
     res.status(201).json({ success: true, data: category });
@@ -105,7 +105,7 @@ exports.updateCategory = async (req, res, next) => {
     ErrorResponse.validateRequest(req);
 
     const prev = JSON.parse(body.prevImg);
-    const nothumb = "no-photo-thumb.png";
+    const nothumb = "images/no-photo-thumb.png";
     let image = prev.length ? prev[0] : "";
     if (req.file) {
       image = req.file.path;

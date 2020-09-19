@@ -49,17 +49,22 @@ exports.adminSchema = checkSchema({
     isMobilePhone: true,
     errorMessage: i18next.t("common:invalid_mobile"),
   },
-  password: {
-    isLength: {
-      options: { min: 6, max: 12 },
-      errorMessage: i18next.t("common:length_between", { min: 6, max: 12 }),
+  role: {
+    trim: true,
+    exists: true,
+    custom: {
+      options: (value) => {
+        if (
+          value === "Administrator" ||
+          value === "Manager" ||
+          value === "Seller"
+        ) {
+          return true;
+        }
+        return false;
+      },
     },
-  },
-  newsletter: {
-    toBoolean: true,
-    customSanitizer: {
-      options: (value) => (value ? 1 : 0),
-    },
+    errorMessage: i18next.t("settings:wrong_role"),
   },
 });
 

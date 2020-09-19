@@ -11,36 +11,60 @@ const {
 const { couponSchema } = require("../validators/coupon");
 const authorize = require("../middlewares/authorize");
 
-router.use(authorize);
-
 //@route    GET
 //@access   ADMIN
 //@desc     Get Coupons
-router.get("/", getCoupons);
+router.get(
+  "/",
+  authorize(["Owner", "Administrator", "Manager", "Seller"]),
+  getCoupons
+);
 
 //@route    GET
 //@access   ADMIN
 //@desc     Get Coupon by ID
-router.get("/:id", getCoupon);
+router.get(
+  "/:id",
+  authorize(["Owner", "Administrator", "Manager", "Seller"]),
+  getCoupon
+);
 
 //@route    POST
 //@access   ADMIN
 //@desc     Add Coupon
-router.post("/", couponSchema, addCoupon);
+router.post(
+  "/",
+  authorize(["Owner", "Administrator", "Manager"]),
+  couponSchema,
+  addCoupon
+);
 
 //@route    PUT
 //@access   ADMIN
 //@desc     Update Coupon
-router.put("/:id", couponSchema, updateCoupon);
+router.put(
+  "/:id",
+  authorize(["Owner", "Administrator", "Manager"]),
+  couponSchema,
+  updateCoupon
+);
 
 //@route    PUT
 //@access   ADMIN
 //@desc     Switch Coupon status
-router.patch("/:id", switchStatus);
+router.patch(
+  "/:id",
+  authorize(["Owner", "Administrator", "Manager"]),
+  switchStatus
+);
 
 //@route    DELETE
 //@access   ADMIN
 //@desc     Delete Coupun
-router.delete("/:id", deleteCoupon);
+router.delete(
+  "/:id",
+  authorize(["Owner", "Administrator", "Manager"]),
+  deleteCoupon
+);
 
 module.exports = router;

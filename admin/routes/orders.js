@@ -10,7 +10,7 @@ const {
 const authorize = require("../middlewares/authorize");
 const { queryValidator, historyValidator } = require("../validators/order");
 
-router.use(authorize);
+router.use(authorize(["Owner", "Administrator", "Manager", "Seller"]));
 
 //@route    GET
 //@access   ADMIN

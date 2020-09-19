@@ -11,7 +11,7 @@ const {
 const authorize = require("../middlewares/authorize");
 const { languageSchema } = require("../validators/languages");
 
-router.use(authorize);
+router.use(authorize(["Owner", "Administrator", "Manager", "Seller"]));
 
 // @route    GET
 // @access   ADMIN

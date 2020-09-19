@@ -1,0 +1,145 @@
+<html>
+  <head>
+    <%# include('style.html') %>
+    <style>
+      body {
+        margin: 1rem;
+      }
+      .flex {
+        display: flex;
+        margin: auto;
+      }
+      .flex__centerlize {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+      .flex-justify-center {
+        justify-content: center;
+      }
+      .border {
+        border: solid 1px #3e3e3e;
+        border-radius: 3px;
+      }
+      .box-shadow {
+        box-shadow: 0px 0px 3px #8a8a8a;
+      }
+      .m {
+        margin: 0.5rem;
+      }
+      .ver {
+        flex-direction: column;
+      }
+      .align-items-center {
+        align-items: center;
+      }
+      .bg-primary {
+        background: #b8656c;
+      }
+      .bg-primary-gradient {
+        background: #b8656c;
+        background: -moz-linear-gradient(300deg, #f3e3e4 0%, #b8656c 100%);
+        background: -webkit-linear-gradient(300deg, #f3e3e4 0%, #b8656c 100%);
+        background: linear-gradient(300deg, #f3e3e4 0%, #b8656c 100%);
+        filter: progid:DXImageTransform.Microsoft.gradient(startColorstr="#F3E3E4",endColorstr=#b8656c,GradientType=1);
+      }
+      .text-light {
+        color: #f4f4f4;
+      }
+      .px {
+        padding: 0 0.5rem;
+      }
+      .clearm {
+        margin: 0;
+      }
+      .center {
+        text-align: center;
+      }
+      .px-1 {
+        padding: 0 1rem;
+      }
+      .my {
+        margin: 0.5rem 0;
+      }
+      .bg-secondary-gradient {
+        background: #222823;
+        background: -moz-linear-gradient(300deg, #303531 0%, #222823 100%);
+        background: -webkit-linear-gradient(300deg, #303531 0%, #222823 100%);
+        background: linear-gradient(300deg, #303531 0%, #222823 100%);
+        filter: progid:DXImageTransform.Microsoft.gradient(startColorstr="#303531",endColorstr=#222823,GradientType=1);
+      }
+      .text-dark {
+        color: #8a8a8a;
+      }
+      .text-smaller {
+        font-size: 11px;
+      }
+      .py {
+        padding: 0.5rem 0;
+      }
+      a {
+        text-decoration: none;
+        color: inherit;
+      }
+      .p {
+        padding: 0.5rem;
+      }
+    </style>
+  </head>
+  <body lang="<%=locale%>" dir="<%=dir%>">
+    <div style="display: flex; margin: auto">
+      <div
+        class="border m"
+        style="box-shadow: 0px 0px 3px #8a8a8a; width: 400px; margin: auto"
+      >
+        <!-- TOP -->
+        <div class="center bg-primary-gradient text-light px">
+          <img src="<%=host%>/<%=logo%>" width="100" height="100" />
+          <h2 class="py clearm"><%=siteName%></h2>
+        </div>
+        <hr class="clearm" />
+
+        <!-- Body -->
+        <div class="p">
+          <h4 class="clearm center">تم إعادة ضبط كلمة المرور</h4>
+          <p>مرحباً: <b><%=username%></b></p>
+          <p>
+            لقد تم إعادة ضبط كلمة المرور لحسابكم من قبل الأدمن. يمكنك تسجيل
+            الدخول إلى لوحة التحكم عبر الضغط على الرابط أدناه, قم بإستخدام
+            إيميلك هذا لتسجيل الدخول مع كلمة المرور التالية:
+          </p>
+          <p
+            class="center my bg-secondary-gradient text-light"
+            style="padding: 0.5rem; text-align: center"
+          >
+            <%= password %>
+          </p>
+          <p class="text-smaller text-dark">
+            مع أن كلمة المرور هذه تم إنشاؤها بشكل آلي وﻻ يعلمها أي شخص، إلا أننا
+            ننصح بتسجيل الدخول وتغيير كلمة المرور إلى كلمة أخرى تستذكرها
+          </p>
+        </div>
+
+        <!-- Action -->
+        <div class="center" style="margin: 1rem">
+          <a
+            class="bg-primary"
+            style="
+              padding: 0.5rem 1rem;
+              margin: 0.5rem;
+              color: #f4f4f4 !important;
+            "
+            href="<%= host %>/admin "
+          >
+            تسجيل الدخول
+          </a>
+          <p class="text-smaller text-dark py">
+            في حال لم يعمل الزر أعلاه: يرجى نسخ هذا الرابط و لصقه في المتصفح:
+            <%= host %>/admin
+          </p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

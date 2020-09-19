@@ -12,7 +12,7 @@ const {
 const { attributeSchema } = require("../validators/attribute");
 const authorize = require("../middlewares/authorize");
 
-router.use(authorize);
+router.use(authorize(["Owner", "Administrator", "Manager", "Seller"]));
 
 //@route    GET
 //@access   ADMIN

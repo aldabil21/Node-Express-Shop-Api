@@ -12,12 +12,20 @@ router.post("/signin", isSignin, signin);
 //@route    POST
 //@access   ADMIN
 //@desc     Sign out
-router.post("/signout", authorize, signout);
+router.post(
+  "/signout",
+  authorize(["Owner", "Administrator", "Manager", "Seller"]),
+  signout
+);
 
 //@route    POST
 //@access   ADMIN
 //@desc     Init app - auto auth
-router.post("/", authorize, initApp);
+router.post(
+  "/",
+  authorize(["Owner", "Administrator", "Manager", "Seller"]),
+  initApp
+);
 
 //TODO: routes: reset password -
 

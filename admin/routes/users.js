@@ -4,7 +4,7 @@ const { getUsers, switchStatus } = require("../controllers/users");
 
 const authorize = require("../middlewares/authorize");
 
-router.use(authorize);
+router.use(authorize(["Owner", "Administrator", "Manager"]));
 
 //@route    GET
 //@access   ADMIN

@@ -13,5 +13,6 @@
   "fail_to_authenticate": "Authenticate Fail. Please sign in again.",
   "signin_credintials_incorrect": "Invalid Credintials",
   "account_disabled": "Account is disabled",
-  "validation_error": "Please review fields in red color"
+  "validation_error": "Please review fields in red color",
+  "admin_data_exists": "These Admin data been used before: {{email}} {{mobile}}"
 }

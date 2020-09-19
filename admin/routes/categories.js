@@ -13,7 +13,7 @@ const { categorySchema } = require("../validators/category");
 const authorize = require("../middlewares/authorize");
 const multer = require("../helpers/multer");
 
-router.use(authorize);
+router.use(authorize(["Owner", "Administrator", "Manager", "Seller"]));
 
 //@route    GET
 //@access   ADMIN

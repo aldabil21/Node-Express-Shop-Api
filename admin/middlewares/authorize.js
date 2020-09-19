@@ -3,7 +3,7 @@ const Admin = require("../models/admin");
 const ErrorResponse = require("../helpers/error");
 const { i18next } = require("../../i18next");
 
-const authorize = async (req, res, next) => {
+const authorize = (role = []) => async (req, res, next) => {
   try {
     let token;
 
@@ -29,8 +29,13 @@ const authorize = async (req, res, next) => {
       throw new ErrorResponse(401, i18next.t("common:invalid_credentials"));
     }
 
-    req.admin = admin.admin_id;
+    if (!role.includes(admin.role)) {
+      throw new ErrorResponse(403, i18next.t("common:permission_error"));
+    }
 
+    req.admin = admin.admin_id;
+    req.adminRole = admin.role;
+    req.adminUsername = admin.firstname;
     next();
   } catch (err) {
     next(err);

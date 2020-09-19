@@ -14,7 +14,7 @@ settingsLoader().then(() => {
 
   //Statics
   app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-  app.use("/", express.static(path.join(__dirname, "assets", "images")));
+  app.use("/", express.static(path.join(__dirname, "assets")));
 
   //Parsers
   app.use(express.json());
@@ -67,6 +67,7 @@ settingsLoader().then(() => {
   const adminSettings = require("./admin/routes/settings");
   const languages = require("./admin/routes/languages");
   const shippings = require("./admin/routes/shipping");
+  const admins = require("./admin/routes/admins");
   app.use("/api/v1/admin/auth", admin);
   app.use("/api/v1/admin/products", adminProducts);
   app.use("/api/v1/admin/products", specials);
@@ -80,6 +81,8 @@ settingsLoader().then(() => {
   app.use("/api/v1/admin/settings", adminSettings);
   app.use("/api/v1/admin/languages", languages);
   app.use("/api/v1/admin/shippings", shippings);
+  app.use("/api/v1/admin/admins", admins);
+
   //Error handlers
   app.use(error404);
   app.use(errorHandler);

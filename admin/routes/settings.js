@@ -4,7 +4,7 @@ const { getGenerals, updateGenerals } = require("../controllers/settings");
 const multer = require("../helpers/multer");
 const authorize = require("../middlewares/authorize");
 
-router.use(authorize);
+router.use(authorize(["Owner", "Administrator"]));
 
 // @route    GET
 // @access   ADMIN
