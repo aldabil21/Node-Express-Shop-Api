@@ -76,6 +76,76 @@ exports.initApp = async (req, res, next) => {
   }
 };
 
+//@route    POST
+//@access   PUBLIC
+//@desc     Forgot password
+exports.forgotPassword = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+
+    ErrorResponse.validateRequest(req);
+
+    const exist = await Admin.findOne(email);
+
+    if (exist) {
+      await Admin.generateResetPasswordToken(exist, req);
+    }
+
+    res.status(200).json({
+      success: true,
+      data: "",
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+//@route    GET
+//@access   PUBLIC
+//@desc     Validate forgot password
+exports.validateForgotPassword = async (req, res, next) => {
+  try {
+    const { email, token } = req.params;
+
+    const exist = await Admin.validateForgotPassword(email, token);
+
+    if (!exist) {
+      throw new ErrorResponse(422, i18next.t("common:reset_url_err_expired"));
+    }
+
+    res.status(200).json({
+      success: true,
+      data: "",
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+//@route    POST
+//@access   PUBLIC
+//@desc     Validate forgot password
+exports.resetForgotPassword = async (req, res, next) => {
+  try {
+    const { email, token } = req.params;
+    const { password } = req.body;
+    ErrorResponse.validateRequest(req);
+
+    const exist = await Admin.validateForgotPassword(email, token);
+    if (!exist) {
+      throw new ErrorResponse(422, i18next.t("common:reset_url_err_expired"));
+    }
+
+    const resetted = await Admin.resetForgotPassword(exist, password);
+
+    res.status(200).json({
+      success: true,
+      data: "",
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 //Helpers
 const tokenCookieOptions = {
   expires: new Date(Date.now() + 24 * 2 * 60 * 60 * 1000), //2d

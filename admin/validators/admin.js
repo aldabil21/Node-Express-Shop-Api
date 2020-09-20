@@ -1,5 +1,6 @@
 const { checkSchema, body } = require("express-validator");
 const { i18next } = require("../../i18next");
+const ErrorResponse = require("../helpers/error");
 
 exports.adminSchema = checkSchema({
   id: {
@@ -52,9 +53,17 @@ exports.adminSchema = checkSchema({
   role: {
     trim: true,
     exists: true,
+    errorMessage: i18next.t("settings:wrong_role"),
     custom: {
-      options: (value) => {
+      options: (value, { req }) => {
+        if (value === "Owner" && req.adminRole !== "Owner") {
+          throw new ErrorResponse(
+            403,
+            i18next.t("settings:only_owners_allowed")
+          );
+        }
         if (
+          value === "Owner" ||
           value === "Administrator" ||
           value === "Manager" ||
           value === "Seller"
@@ -64,7 +73,6 @@ exports.adminSchema = checkSchema({
         return false;
       },
     },
-    errorMessage: i18next.t("settings:wrong_role"),
   },
 });
 

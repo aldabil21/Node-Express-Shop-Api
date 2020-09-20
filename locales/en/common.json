@@ -14,5 +14,7 @@
   "signin_credintials_incorrect": "Invalid Credintials",
   "account_disabled": "Account is disabled",
   "validation_error": "Please review fields in red color",
-  "admin_data_exists": "These Admin data been used before: {{email}} {{mobile}}"
+  "admin_data_exists": "These Admin data been used before: {{email}} {{mobile}}",
+  "already_requested_reset": "You can repeat your request after: {{remaining}}",
+  "reset_url_err_expired": "Error validating identity or perhaps the link has expired"
 }

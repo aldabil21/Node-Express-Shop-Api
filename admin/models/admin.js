@@ -6,6 +6,8 @@ const { i18next } = require("../../i18next");
 const crypto = require("crypto");
 const Email = require("../../email/email");
 const { getHost } = require("../helpers/utils");
+const { formatDistanceToNow, isBefore } = require("date-fns");
+const { arSA } = require("date-fns/locale");
 
 exports.signin = async (data) => {
   const { email, password } = data;
@@ -231,7 +233,105 @@ exports.findById = async (admin_id) => {
   return foundAdmin;
 };
 
-//User for Authentication
+exports.generateResetPasswordToken = async (admin, req) => {
+  const {
+    admin_id,
+    firstname,
+    lastname,
+    email,
+    country_code,
+    mobile,
+    reset_expires,
+  } = admin;
+
+  //Already has reset in time
+  const withinTime =
+    reset_expires && isBefore(new Date(), new Date(reset_expires));
+  if (withinTime) {
+    const remaining = formatDistanceToNow(new Date(reset_expires), {
+      locale: i18next.language === "ar" ? arSA : "",
+    });
+    throw new ErrorResponse(
+      422,
+      i18next.t("common:already_requested_reset", { remaining: remaining })
+    );
+  }
+
+  // Create reset token
+  const _token = crypto.randomBytes(32).toString("hex");
+  const after30Min = new Date(Date.now() + 30 * 60 * 1000);
+
+  const [updated, _] = await db.query(
+    `UPDATE admin SET ? WHERE admin_id = '${admin_id}'`,
+    {
+      reset_token: _token,
+      reset_expires: after30Min,
+    }
+  );
+
+  //Send Email not wait for it
+  const emailData = {
+    username: firstname + " " + lastname,
+    host: getHost(req),
+    url: `forgotpassword/${email}/${_token}`,
+  };
+  const Mailer = new Email(
+    email,
+    "إستعادة كلمة المرور",
+    "email/templates/forgotpassword.html",
+    emailData
+  );
+  Mailer.send();
+
+  return true;
+};
+
+exports.validateForgotPassword = async (email, token) => {
+  const [query, _] = await db.query(
+    `SELECT DISTINCT * FROM admin WHERE email = '${email}' AND reset_token = '${token}' AND reset_expires > NOW()`
+  );
+
+  let admin;
+
+  if (query.length) {
+    admin = query[0];
+  }
+
+  return admin;
+};
+
+exports.resetForgotPassword = async (admin, newPassword) => {
+  const { admin_id } = admin;
+  //Hash password
+  const salt = await bcrypt.genSalt(10);
+  const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+  const [query, _] = await db.query(
+    `UPDATE admin SET ? WHERE admin_id = '${admin_id}'`,
+    {
+      password: hashedPassword,
+    }
+  );
+
+  //Clear reset data, not wait for it
+  this.clearAdminResetData(admin_id);
+
+  return true;
+};
+
+exports.clearAdminResetData = async (id) => {
+  const [query, _] = await db.query(
+    `UPDATE admin SET ? WHERE admin_id = '${id}'`,
+    {
+      reset_token: null,
+      reset_expires: null,
+    }
+  );
+
+  return true;
+};
+
+//Used for Authentication
 exports.findByKid = async (kid) => {
   const [admin, fields] = await db.query(
     `SELECT DISTINCT * from admin WHERE kid = '${kid}' AND status = '1'`

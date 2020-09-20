@@ -14,5 +14,7 @@
   "signin_credintials_incorrect": "معلومات الدخول غير صحيحة",
   "account_disabled": "حسابك معطّل حالياً",
   "validation_error": "يرجى التحقق من صحة الفراغات المطلوبة باللون الأحمر",
-  "admin_data_exists": "بيانات الأدمن التالية تم تسجيلها من قبل: {{email}} {{mobile}}"
+  "admin_data_exists": "بيانات الأدمن التالية تم تسجيلها من قبل: {{email}} {{mobile}}",
+  "already_requested_reset": "يمكنك إعادة تكرار إرسال الطلب بعد: {{remaining}}",
+  "reset_url_err_expired": "خطأ في التحقق من الحساب أو إنتهت صلاحية الرابط"
 }

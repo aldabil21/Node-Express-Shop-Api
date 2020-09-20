@@ -39,15 +39,7 @@ exports.getAdmin = async (req, res, next) => {
 //@desc     Add Admin
 exports.addAdmin = async (req, res, next) => {
   try {
-    const { role } = req.body;
-    const { adminRole } = req;
-
     ErrorResponse.validateRequest(req);
-
-    //Only owner can add owner
-    if (role === "Owner" && adminRole !== "Owner") {
-      throw new ErrorResponse(403, i18next.t("settings:only_owners_allowed"));
-    }
 
     const admin = await Admins.addAdmin(req);
 
@@ -67,13 +59,10 @@ exports.updateAdmin = async (req, res, next) => {
       id,
       ...req.body,
     };
-    const { adminRole, admin } = req;
-    //Only owner update owner
-    const toBeUpdate = await Admins.findById(id);
-    if (toBeUpdate.role === "Owner" && adminRole !== "Owner") {
-      throw new ErrorResponse(403, i18next.t("settings:only_owners_allowed"));
-    }
+    const { admin } = req;
+
     //Cannot switch self off
+    const toBeUpdate = await Admins.findById(id);
     if (+toBeUpdate.admin_id === +admin && data.status === 0) {
       throw new ErrorResponse(403, i18next.t("settings:cannot_self_off"));
     }
