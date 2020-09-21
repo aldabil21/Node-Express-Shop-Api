@@ -54,7 +54,7 @@ settingsLoader().then(() => {
   app.use("/api/v1/card", card);
 
   // Admin
-  const admin = require("./admin/routes/auth");
+  const adminAtuh = require("./admin/routes/auth");
   const adminProducts = require("./admin/routes/product");
   const coupon = require("./admin/routes/coupon");
   const specials = require("./admin/routes/specials");
@@ -68,7 +68,8 @@ settingsLoader().then(() => {
   const languages = require("./admin/routes/languages");
   const shippings = require("./admin/routes/shipping");
   const admins = require("./admin/routes/admins");
-  app.use("/api/v1/admin/auth", admin);
+  const profile = require("./admin/routes/profile");
+  app.use("/api/v1/admin/auth", adminAtuh);
   app.use("/api/v1/admin/products", adminProducts);
   app.use("/api/v1/admin/products", specials);
   app.use("/api/v1/admin/filters", filters);
@@ -82,6 +83,7 @@ settingsLoader().then(() => {
   app.use("/api/v1/admin/languages", languages);
   app.use("/api/v1/admin/shippings", shippings);
   app.use("/api/v1/admin/admins", admins);
+  app.use("/api/v1/admin/profile", profile);
 
   //Error handlers
   app.use(error404);
