@@ -69,6 +69,7 @@ settingsLoader().then(() => {
   const shippings = require("./admin/routes/shipping");
   const admins = require("./admin/routes/admins");
   const profile = require("./admin/routes/profile");
+  const statistics = require("./admin/routes/statistics");
   app.use("/api/v1/admin/auth", adminAtuh);
   app.use("/api/v1/admin/products", adminProducts);
   app.use("/api/v1/admin/products", specials);
@@ -84,6 +85,7 @@ settingsLoader().then(() => {
   app.use("/api/v1/admin/shippings", shippings);
   app.use("/api/v1/admin/admins", admins);
   app.use("/api/v1/admin/profile", profile);
+  app.use("/api/v1/admin/statistics", statistics);
 
   //Error handlers
   app.use(error404);

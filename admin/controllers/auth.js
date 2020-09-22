@@ -21,9 +21,11 @@ exports.signin = async (req, res, next) => {
       return { language: lang.language, code: lang.code };
     });
     const siteName = Settings.getSetting("config", "site_name").site_name;
+    const google_api = Settings.getSetting("config", "google_api").google_api;
     const settings = {
       languages: languages,
       siteName: siteName,
+      google_api: google_api,
     };
     //clear guest cookie + add token cookie
     res.clearCookie("guest");
@@ -60,9 +62,11 @@ exports.initApp = async (req, res, next) => {
     });
 
     const siteName = Settings.getSetting("config", "site_name").site_name;
+    const google_api = Settings.getSetting("config", "google_api").google_api;
     const settings = {
       languages: languages,
       siteName: siteName,
+      google_api: google_api,
     };
     //clear guest cookie + add token cookie
     res.clearCookie("guest");
