@@ -8,7 +8,7 @@ class ErrorResponse extends Error {
     this.data = data;
   }
 
-  static validateRequest = (req) => {
+  static validateRequest(req) {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       throw new ErrorResponse(
@@ -17,7 +17,7 @@ class ErrorResponse extends Error {
         errors.array()
       );
     }
-  };
+  }
 }
 
 module.exports = ErrorResponse;

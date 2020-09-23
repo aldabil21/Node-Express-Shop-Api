@@ -1,26 +1,41 @@
+//App
 const express = require("express");
-const cookieParser = require("cookie-parser");
-const PORT = process.env.PORT || 5000;
 const path = require("path");
-const { guestId } = require("./middlewares/guestId");
+const PORT = process.env.PORT || 5000;
+//Util & Sec middlewares
 const { settingsLoader } = require("./helpers/settings");
-const { errorHandler, error404 } = require("./middlewares/error");
+const cookieParser = require("cookie-parser");
+const helmet = require("helmet");
+const xss = require("xss-clean");
+const hpp = require("hpp");
 const cors = require("./middlewares/cors");
+const rateLimiter = require("./middlewares/rateLimiter");
+const { guestId } = require("./middlewares/guestId");
+const { errorHandler, error404 } = require("./middlewares/error");
 
 //AppConfig loader
 settingsLoader().then(() => {
   //App
   const app = express();
 
-  //Statics
-  app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-  app.use("/", express.static(path.join(__dirname, "assets")));
+  //Helmet
+  app.use(helmet());
+
+  //Allow CROS
+  app.use(cors);
 
   //Parsers
   app.use(express.json());
 
-  //Allow CROS
-  app.use(cors);
+  //XSS
+  app.use(xss());
+  //Rate Limit
+  app.use(rateLimiter());
+  //HPP
+  app.use(hpp());
+  //Statics
+  app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+  app.use("/", express.static(path.join(__dirname, "assets")));
 
   //Cookie
   app.use(cookieParser());
@@ -32,60 +47,16 @@ settingsLoader().then(() => {
   const languegeSetter = require("./middlewares/language");
   app.use(i18n.handle(i18next));
   app.use(languegeSetter);
+
   /**
    * Routes
    */
   // User
-  const auth = require("./routes/auth");
-  const products = require("./routes/product");
-  const cart = require("./routes/cart");
-  const point = require("./routes/point");
-  const checkout = require("./routes/checkout");
-  const address = require("./routes/address");
-  const settings = require("./routes/settings");
-  const card = require("./routes/card");
-  app.use("/api/v1/auth", auth);
-  app.use("/api/v1/products", products);
-  app.use("/api/v1/points", point);
-  app.use("/api/v1/cart", cart);
-  app.use("/api/v1/checkout", checkout);
-  app.use("/api/v1/address", address);
-  app.use("/api/v1/config", settings);
-  app.use("/api/v1/card", card);
-
+  const routes = require("./routes");
+  app.use("/api/v1", routes);
   // Admin
-  const adminAtuh = require("./admin/routes/auth");
-  const adminProducts = require("./admin/routes/product");
-  const coupon = require("./admin/routes/coupon");
-  const specials = require("./admin/routes/specials");
-  const filters = require("./admin/routes/filters");
-  const categories = require("./admin/routes/categories");
-  const tax = require("./admin/routes/tax");
-  const attribute = require("./admin/routes/attribute");
-  const orders = require("./admin/routes/orders");
-  const users = require("./admin/routes/users");
-  const adminSettings = require("./admin/routes/settings");
-  const languages = require("./admin/routes/languages");
-  const shippings = require("./admin/routes/shipping");
-  const admins = require("./admin/routes/admins");
-  const profile = require("./admin/routes/profile");
-  const statistics = require("./admin/routes/statistics");
-  app.use("/api/v1/admin/auth", adminAtuh);
-  app.use("/api/v1/admin/products", adminProducts);
-  app.use("/api/v1/admin/products", specials);
-  app.use("/api/v1/admin/filters", filters);
-  app.use("/api/v1/admin/categories", categories);
-  app.use("/api/v1/admin/coupons", coupon);
-  app.use("/api/v1/admin/tax", tax);
-  app.use("/api/v1/admin/attributes", attribute);
-  app.use("/api/v1/admin/orders", orders);
-  app.use("/api/v1/admin/users", users);
-  app.use("/api/v1/admin/settings", adminSettings);
-  app.use("/api/v1/admin/languages", languages);
-  app.use("/api/v1/admin/shippings", shippings);
-  app.use("/api/v1/admin/admins", admins);
-  app.use("/api/v1/admin/profile", profile);
-  app.use("/api/v1/admin/statistics", statistics);
+  const adminRoutes = require("./admin/routes");
+  app.use("/api/v1/admin", adminRoutes);
 
   //Error handlers
   app.use(error404);

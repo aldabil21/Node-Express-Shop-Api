@@ -12,7 +12,7 @@ class Email {
     this.data = data;
   }
 
-  send = async () => {
+  async send() {
     try {
       // Setup transporter
       const mailSettings = await Settings.getSettings("config", "email_");
@@ -49,7 +49,7 @@ class Email {
       console.log(err);
       throw new ErrorResponse(500, i18next.t("common:email_send_error"));
     }
-  };
+  }
 }
 
 module.exports = Email;
