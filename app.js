@@ -12,6 +12,7 @@ const cors = require("./middlewares/cors");
 const rateLimiter = require("./middlewares/rateLimiter");
 const { guestId } = require("./middlewares/guestId");
 const { errorHandler, error404 } = require("./middlewares/error");
+const config = require("./middlewares/config");
 
 //AppConfig loader
 settingsLoader().then(() => {
@@ -33,9 +34,13 @@ settingsLoader().then(() => {
   app.use(rateLimiter());
   //HPP
   app.use(hpp());
+
   //Statics
-  app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-  app.use("/", express.static(path.join(__dirname, "assets")));
+  app.use("/api/uploads", express.static(path.join(__dirname, "uploads")));
+  app.use("/api", express.static(path.join(__dirname, "assets")));
+
+  //My config
+  app.use(config);
 
   //Cookie
   app.use(cookieParser());

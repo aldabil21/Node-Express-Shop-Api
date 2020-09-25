@@ -41,7 +41,7 @@ exports.addAdmin = async (req, res, next) => {
   try {
     ErrorResponse.validateRequest(req);
 
-    const admin = await Admins.addAdmin(req);
+    const admin = await Admins.addAdmin(req.body);
 
     res.status(201).json({ success: true, data: admin });
   } catch (err) {
@@ -59,12 +59,16 @@ exports.updateAdmin = async (req, res, next) => {
       id,
       ...req.body,
     };
-    const { admin } = req;
+    const { admin, adminRole } = req;
 
     //Cannot switch self off
     const toBeUpdate = await Admins.findById(id);
     if (+toBeUpdate.admin_id === +admin && data.status === 0) {
       throw new ErrorResponse(403, i18next.t("settings:cannot_self_off"));
+    }
+    //Cannot play with Owner role except another Owner
+    if (toBeUpdate.role === "Owner" && adminRole !== "Owner") {
+      throw new ErrorResponse(403, i18next.t("settings:only_owners_allowed"));
     }
     ErrorResponse.validateRequest(req);
     const updated = await Admins.updateAdmin(data);
@@ -135,7 +139,7 @@ exports.requestPasswordReset = async (req, res, next) => {
     if (tobeReset.role === "Owner" && adminRole !== "Owner") {
       throw new ErrorResponse(403, i18next.t("settings:only_owners_allowed"));
     }
-    const result = await Admins.requestPasswordReset(tobeReset, req);
+    const result = await Admins.requestPasswordReset(tobeReset);
     res.status(200).json({ success: true, data: result });
   } catch (err) {
     next(err);

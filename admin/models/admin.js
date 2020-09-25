@@ -5,7 +5,6 @@ const ErrorResponse = require("../helpers/error");
 const { i18next } = require("../../i18next");
 const crypto = require("crypto");
 const Email = require("../../email/email");
-const { getHost } = require("../helpers/utils");
 const { formatDistanceToNow, isBefore } = require("date-fns");
 const { arSA } = require("date-fns/locale");
 
@@ -63,9 +62,8 @@ exports.getAdmin = async (id) => {
   }
   return admin;
 };
-exports.addAdmin = async (req) => {
-  const data = req.body;
-  const { email, country_code, mobile } = data;
+exports.addAdmin = async (body) => {
+  const { email, country_code, mobile } = body;
   const cellphone = {
     country_code,
     mobile,
@@ -92,18 +90,9 @@ exports.addAdmin = async (req) => {
   const salt = await bcrypt.genSalt(10);
   const hashedPassword = await bcrypt.hash(initialPassword, salt);
 
-  // Resiter Admin
-  const [registered, fields] = await db.query(`INSERT INTO admin SET ?`, {
-    ...data,
-    kid,
-    password: hashedPassword,
-    status: 1,
-  });
-
   //Send Email not waiting for it
   const emailData = {
-    ...data,
-    host: getHost(req),
+    ...body,
     password: initialPassword,
   };
   const Mailer = new Email(
@@ -112,7 +101,15 @@ exports.addAdmin = async (req) => {
     "email/templates/newAdmin.html",
     emailData
   );
-  Mailer.send();
+  await Mailer.send();
+
+  // Resiter Admin
+  const [registered, fields] = await db.query(`INSERT INTO admin SET ?`, {
+    ...body,
+    kid,
+    password: hashedPassword,
+    status: 1,
+  });
 
   return this.findById(registered.insertId);
 };
@@ -165,7 +162,7 @@ exports.switchStatus = async (admin_id, status) => {
 
   return status;
 };
-exports.requestPasswordReset = async (admin, req) => {
+exports.requestPasswordReset = async (admin) => {
   //Create initial password to send by Email
   const newPassword = crypto.randomBytes(4).toString("hex");
   //Hash password
@@ -175,7 +172,6 @@ exports.requestPasswordReset = async (admin, req) => {
   //Send Email & waiting for it
   const emailData = {
     username: admin.name,
-    host: getHost(req),
     password: newPassword,
   };
   const Mailer = new Email(
@@ -233,7 +229,7 @@ exports.findById = async (admin_id) => {
   return foundAdmin;
 };
 
-exports.generateResetPasswordToken = async (admin, req) => {
+exports.generateResetPasswordToken = async (admin) => {
   const {
     admin_id,
     firstname,
@@ -260,19 +256,9 @@ exports.generateResetPasswordToken = async (admin, req) => {
   // Create reset token
   const _token = crypto.randomBytes(32).toString("hex");
   const after30Min = new Date(Date.now() + 30 * 60 * 1000);
-
-  const [updated, _] = await db.query(
-    `UPDATE admin SET ? WHERE admin_id = '${admin_id}'`,
-    {
-      reset_token: _token,
-      reset_expires: after30Min,
-    }
-  );
-
-  //Send Email not wait for it
+  //Send Email & wait for it
   const emailData = {
     username: firstname + " " + lastname,
-    host: getHost(req),
     url: `forgotpassword/${email}/${_token}`,
   };
   const Mailer = new Email(
@@ -281,7 +267,15 @@ exports.generateResetPasswordToken = async (admin, req) => {
     "email/templates/forgotpassword.html",
     emailData
   );
-  Mailer.send();
+  await Mailer.send();
+
+  const [updated, _] = await db.query(
+    `UPDATE admin SET ? WHERE admin_id = '${admin_id}'`,
+    {
+      reset_token: _token,
+      reset_expires: after30Min,
+    }
+  );
 
   return true;
 };
