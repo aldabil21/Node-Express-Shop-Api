@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const path = require("path");
 
 const adminAtuh = require("./auth");
 const adminProducts = require("./product");
@@ -34,5 +35,9 @@ router.use("/shippings", shippings);
 router.use("/admins", admins);
 router.use("/profile", profile);
 router.use("/statistics", statistics);
+
+router.get((req, res) =>
+  res.sendFile(path.join(__dirname, "..", "..", "dashboard", "index.html"))
+);
 
 module.exports = router;

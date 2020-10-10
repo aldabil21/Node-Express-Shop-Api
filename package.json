@@ -1,14 +1,16 @@
 {
-  "name": "mysql_base",
+  "name": "express_shop",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
   "esnext": "esnext",
   "module": "commonjs",
   "scripts": {
-    "start": "node app.js",
-    "dev": "NODE_ENV=development nodemon app.js",
-    "prod": "NODE_ENV=production nodemon app.js"
+    "start": "pm2-runtime start ecosystem.config.js --env production",
+    "server": "NODE_ENV=development nodemon app.js",
+    "client": "npm start --prefix ../adminfront",
+    "prod": "NODE_ENV=production nodemon app.js",
+    "dev": "concurrently \"npm run server\" \"npm run client\""
   },
   "keywords": [],
   "author": "",
@@ -18,6 +20,7 @@
     "@types/mysql": "^2.15.15",
     "@types/mysql2": "github:types/mysql2",
     "@types/node": "^14.0.23",
+    "concurrently": "^5.3.0",
     "nodemon": "^2.0.4"
   },
   "dependencies": {
@@ -38,7 +41,11 @@
     "multer": "^1.4.2",
     "mysql2": "^2.1.0",
     "nodemailer": "^6.4.11",
+    "pm2": "^4.5.0",
     "soap": "^0.32.0",
     "xss-clean": "^0.1.1"
+  },
+  "engines": {
+    "node": "12.16.3"
   }
 }

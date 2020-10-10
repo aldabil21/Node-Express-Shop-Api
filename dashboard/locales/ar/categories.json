@@ -1,0 +1,20 @@
+{
+  "categories_list": "قائمة الأقسام",
+  "new_category": "قسم جديد",
+  "category_not_found": "لم يتم العثور على القسم...",
+  "category_info": "معلومات القسم",
+  "save_err": "خطأ في حفظ القسم",
+  "edit_category": "تعديل القسم",
+  "add_category": "إضافة قسم جديد",
+  "category_name": "إسم القسم",
+  "category_description": "وصف القسم",
+  "meta_title": "عنوان محرك البحث",
+  "meta_description": "وصف محرك البحث",
+  "meta_keywords": "كلمات مفتاحية لمحرك البحث",
+  "category_detail": "تفاصيل القسم",
+  "parent_category": "تابع للقسم",
+  "sort_order": "ترتيب الفرز",
+  "thumb_suggestion": "إسحب صورة هنا للتحميل، أو إضغط هنا للإختيار. أفضل الأبعاد 150 x 150px. المسموح: JPG,PNG,GIF. الحجم الأقصى 50kb",
+  "no_categories": "ﻻ يوجد أقسام...",
+  "confirm_delete_info": "سيتم مسح جميع الأقسام الفرعية لهذا القسم"
+}

@@ -2,3 +2,4 @@ node_modules
 sync.js
 TODO.todo
 nodemon.json
+nodemon.json.local

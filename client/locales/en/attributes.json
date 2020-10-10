@@ -1,0 +1,12 @@
+{
+  "attributes_list": "Attributes List",
+  "new_attribute": "New Attribute",
+  "attribute_not_found": "Attribute Not Found...",
+  "attribute_detail": "Attribute Details",
+  "save_err": "Error Saving Attribute",
+  "edit_attribute": "Edit Attribute",
+  "add_attribute": "Add New Attribute",
+  "attribute_name": "Attribute Name",
+  "sort_order": "Sort Order",
+  "no_attributes": "No Attributes Found..."
+}

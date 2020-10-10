@@ -1,0 +1,12 @@
+{
+  "attributes_list": "قائمة المواصفات",
+  "new_attribute": "صفة جديدة",
+  "attribute_not_found": "لم يتم العثور على الصفة...",
+  "attribute_detail": "تفاصيل الصفة",
+  "save_err": "خطأ في حفظ الصفة",
+  "edit_attribute": "تعديل الصفة",
+  "add_attribute": "إضافة صفة جديد",
+  "attribute_name": "إسم الصفة",
+  "sort_order": "ترتيب الفرز",
+  "no_attributes": "ﻻ يوجد مواصفات..."
+}

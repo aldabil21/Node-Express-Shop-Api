@@ -1,0 +1,14 @@
+{
+  "filters_list": "قائمة الفلاتر",
+  "new_filter": "فلتر جديد",
+  "filter_not_found": "لم يتم العثور على الفلتر...",
+  "filter_detail": "تفاصيل الفلتر",
+  "save_err": "خطأ في حفظ الفلتر",
+  "edit_filter": "تعديل القسم",
+  "add_filter": "إضافة فلتر جديد",
+  "filter_name": "إسم الفلتر",
+  "parent_filter": "تابع للفلتر",
+  "sort_order": "ترتيب الفرز",
+  "no_filters": "ﻻ يوجد فلاتر...",
+  "confirm_delete_info": "سيتم مسح جميع الفلاتر التابعة لهذا الفلتر"
+}
