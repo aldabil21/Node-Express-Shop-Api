@@ -38,8 +38,6 @@ settingsLoader().then(() => {
   //Statics
   app.use("/api/uploads", express.static(path.join(__dirname, "uploads")));
   app.use("/api", express.static(path.join(__dirname, "assets")));
-  // app.use("/", express.static(path.join(__dirname, "client")));
-  // app.use("/admin", express.static(path.join(__dirname, "dashboard")));
 
   //My config
   app.use(config);
@@ -66,7 +64,7 @@ settingsLoader().then(() => {
   app.use("/api/v1/admin", adminRoutes);
 
   //Error handlers
-  // app.use(error404);
+  app.use(error404);
   app.use(errorHandler);
 
   app.listen(PORT, () => console.log(`RUNNING ON ${PORT}`));

@@ -35,6 +35,7 @@ exports.errorHandler = (err, req, res, next) => {
 };
 
 exports.error404 = (req, res, next) => {
-  const error = new ErrorResponse(404, "URL Not Found...");
-  next(error);
+  // const error = new ErrorResponse(404, "URL Not Found...");
+  // next(error);
+  res.redirect("https://express-shop.netlify.app/");
 };
