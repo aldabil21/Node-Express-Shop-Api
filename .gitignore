@@ -3,3 +3,5 @@ sync.js
 TODO.todo
 nodemon.json
 nodemon.json.local
+ecosystem.config.js
+package-lock.json
