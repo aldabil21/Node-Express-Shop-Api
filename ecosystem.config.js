@@ -19,7 +19,6 @@ module.exports = {
       },
       env_production: {
         NODE_ENV: "production",
-        PORT: 5000,
         DB_HOST: "us-cdbr-east-02.cleardb.com",
         DB_USER: "b9e84c12e0c693",
         DB_PASSWORD: "b149436f",
