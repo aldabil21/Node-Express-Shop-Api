@@ -38,8 +38,8 @@ settingsLoader().then(() => {
   //Statics
   app.use("/api/uploads", express.static(path.join(__dirname, "uploads")));
   app.use("/api", express.static(path.join(__dirname, "assets")));
-  app.use("/", express.static(path.join(__dirname, "client")));
-  app.use("/admin", express.static(path.join(__dirname, "dashboard")));
+  // app.use("/", express.static(path.join(__dirname, "client")));
+  // app.use("/admin", express.static(path.join(__dirname, "dashboard")));
 
   //My config
   app.use(config);

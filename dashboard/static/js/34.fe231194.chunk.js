@@ -1,2 +1,0 @@
-(this.webpackJsonpmyshop=this.webpackJsonpmyshop||[]).push([[34],{717:function(e,s,t){"use strict";t.r(s);var n=t(0),i=t.n(n);s.default=function(){return i.a.createElement("div",{className:"position__centerlize"},"SOON...")}}}]);
-//# sourceMappingURL=34.fe231194.chunk.js.map

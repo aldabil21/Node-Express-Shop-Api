@@ -18,10 +18,10 @@ module.exports = {
       },
       env_production: {
         NODE_ENV: "production",
-        DB_HOST: "us-cdbr-east-02.cleardb.com",
-        DB_USER: "b9e84c12e0c693",
-        DB_PASSWORD: "b149436f",
-        DB_SCHEMA: "heroku_1e4ef52093bc0c5",
+        DB_HOST: "u3r5w4ayhxzdrw87.cbetxkdyhwsb.us-east-1.rds.amazonaws.com",
+        DB_USER: "v5b6zhzxqd662xmq",
+        DB_PASSWORD: "yft0ts5dbytl68w1",
+        DB_SCHEMA: "qvn915fhm16fywgy",
         JWT_SECRET:
           "XnuiME36MIlv8dj61okA1DkqeYQVz7sHF3pfGF0j0l2xUfB4hsrJGcVOoCK5Kx0",
         JWT_EXPIRESIN: "2d",
