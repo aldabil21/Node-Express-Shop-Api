@@ -1,7 +1,7 @@
-const { checkSchema } = require("express-validator");
+const { checkSchema, query } = require("express-validator");
 const { i18next } = require("../../i18next");
 const Product = require("../models/product");
-const Category = require("../models/categories");
+const Taxonomy = require("../models/taxonomy");
 const ErrorResponse = require("../helpers/error");
 
 const priceChecker = {
@@ -129,7 +129,7 @@ exports.couponSchema = checkSchema({
     toInt: true,
     custom: {
       options: async (value) => {
-        const cat = await Category.getCategory(value, false);
+        const cat = await Taxonomy.getTaxonomy(value, false);
         if (!cat) {
           throw new ErrorResponse(422, `Category ${value} not exist`);
         }
@@ -137,3 +137,10 @@ exports.couponSchema = checkSchema({
     },
   },
 });
+exports.getSanitizer = [
+  query("q").customSanitizer((value) => value || ""),
+  query("page").customSanitizer((value) => (value > 0 ? value : 1)),
+  query("perPage").customSanitizer((value) => (value > 0 ? value : 20)),
+  query("sort").customSanitizer((value) => value || "date_added"),
+  query("direction").customSanitizer((value) => value || "ASC"),
+];

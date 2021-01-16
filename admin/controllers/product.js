@@ -1,6 +1,5 @@
 const Product = require("../models/product");
-const Category = require("../models/categories");
-const Filter = require("../models/filters");
+const Taxonomy = require("../models/taxonomy");
 const { i18next } = require("../../i18next");
 const ErrorResponse = require("../helpers/error");
 
@@ -58,9 +57,9 @@ exports.getProducts = async (req, res, next) => {
     const totalCount = await Product.getTotalProducts(data);
 
     //Categories
-    const categories = await Category.getAllRaw();
+    const categories = await Taxonomy.getAllRaw({ type: "product_category" });
     //Filters
-    const filters = await Filter.getAllRaw();
+    const filters = await Taxonomy.getAllRaw({ type: "product_filter" });
 
     const pagination = {
       totalCount,
@@ -83,11 +82,6 @@ exports.getProducts = async (req, res, next) => {
 exports.addProduct = async (req, res, next) => {
   try {
     const { body } = req;
-
-    if (!req.files.length) {
-      throw new ErrorResponse(422, i18next.t("product:image_err"));
-    }
-    body.image = req.files.map((img) => img.path).join(",");
     ErrorResponse.validateRequest(req);
     const product = await Product.addProduct(body);
     res.status(201).json({ success: true, data: product });
@@ -104,15 +98,6 @@ exports.updateProduct = async (req, res, next) => {
 
   try {
     const { body } = req;
-
-    //Mix prev images with new uploaded
-    const prevs = JSON.parse(body.prevImgs);
-    body.image = [...prevs, ...req.files.map((img) => img.path)].join(",");
-    delete body.prevImgs;
-
-    if (!body.image.length) {
-      throw new ErrorResponse(422, i18next.t("product:image_err"));
-    }
 
     ErrorResponse.validateRequest(req);
     const product = await Product.updateProduct(body, id);

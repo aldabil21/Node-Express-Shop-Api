@@ -1,36 +1,54 @@
 const multer = require("multer");
 const { format } = require("date-fns");
-const path = require("path");
+const syspath = require("path");
+const fs = require("fs");
+const { CONSTANTS } = require("../../helpers/constants");
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, "./uploads");
+    const { path } = req.query;
+    const root = "media";
+    const saveIn = syspath.join(root, ...path);
+    cb(null, saveIn);
   },
-  filename: (req, file, cb) => {
-    const nameArr = file.originalname.split(".");
-    const name = nameArr.slice(0, nameArr.length - 1).join("_");
-    const clean_name = name.replace(/[^\w.]/g, "_");
-    const extention = path.extname(file.originalname);
-    const dateSign = format(new Date(), "yyyyMMddhhmmss");
-    cb(null, `${clean_name}_${dateSign + extention}`);
+  filename: async (req, file, cb) => {
+    const { path } = req.query;
+    const root = "media";
+    const fileInfo = syspath.parse(file.originalname);
+    const name = fileInfo.name.replace(/[^a-z0-9]+/gi, "_");
+    const extention = fileInfo.ext;
+    const fileWithExt = name + extention;
+
+    const saveIn = syspath.join(root, ...path, fileWithExt);
+    const exists = await checkFileExists(saveIn);
+
+    if (exists) {
+      const dateSign = format(new Date(), "yyyyMMddhhmmss");
+      cb(null, `${dateSign}_${fileWithExt}`);
+    } else {
+      cb(null, fileWithExt);
+    }
   },
 });
 
 const fileFilter = (req, file, cb) => {
-  if (
-    file.mimetype === "image/png" ||
-    file.mimetype === "image/jpg" ||
-    file.mimetype === "image/jpeg" ||
-    file.mimetype === "image/gif"
-  ) {
+  if (CONSTANTS.mimeTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
     cb(null, false);
   }
 };
 
+const checkFileExists = async (filepath) => {
+  return new Promise((resolve, reject) => {
+    fs.access(filepath, fs.constants.F_OK, (error) => {
+      resolve(!error);
+    });
+  });
+};
+
 module.exports = multer({
   storage: storage,
   fileFilter: fileFilter,
-  limits: { fileSize: 120000 },
+  limits: { fileSize: 16777216 },
 });

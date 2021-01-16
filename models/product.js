@@ -2,6 +2,7 @@ const Settings = require("./settings");
 const Tax = require("./tax");
 const db = require("../config/db");
 const { i18next } = require("../i18next");
+const Media = require("./media");
 
 const fullVer = [
   "categories",
@@ -13,22 +14,22 @@ const fullVer = [
 
 exports.getProduct = async (product_id, includes = fullVer) => {
   let sql = `
-  SELECT p.product_id, p.quantity, p.image, CAST(p.price AS DOUBLE)AS price,
+  SELECT p.product_id, p.quantity, CAST(p.price AS DOUBLE)AS price,
   CASE WHEN ps.price IS NOT NULL THEN CAST(ps.price AS DOUBLE) ELSE 0 END AS special, p.points, p.tax_id,
   CASE WHEN t.value IS NOT NULL THEN CAST(t.value AS DOUBLE) ELSE 0 END AS tax_value,
   p.available_at, p.view, p.sold, p.weight, pd.title,
   pd.description, pd.tags, pd.meta_title, pd.meta_description, pd.meta_keywords, p.minimum,
   CASE WHEN p.maximum IS NOT NULL THEN CAST(p.maximum AS INTEGER) ELSE 0 END AS maximum,
   c.code AS coupon_code, c.amount AS coupon_amount, c.type AS coupon_type FROM product p
-  LEFT JOIN product_category pc ON(pc.product_id = p.product_id)
-  LEFT JOIN category cat ON(pc.category_id = cat.category_id)
+  LEFT JOIN taxonomy_relationship tr ON(tr.object_id = p.product_id)
+  LEFT JOIN taxonomy taxo ON(taxo.taxonomy_id = tr.taxonomy_id AND taxo.type = 'product_category')
   LEFT JOIN product_description pd ON(p.product_id = pd.product_id)
   LEFT JOIN product_special ps ON(p.product_id = ps.product_id AND ps.deadline > NOW() AND ps.status = '1')
   LEFT JOIN tax t ON(p.tax_id = t.tax_id AND t.status = '1')
   LEFT JOIN coupon_product cp ON(cp.product_id = p.product_id)
-  LEFT JOIN coupon_category cc ON(cc.category_id = pc.category_id)
+  LEFT JOIN coupon_category cc ON(cc.taxonomy_id = taxo.taxonomy_id)
   LEFT JOIN coupon c ON((c.coupon_id = cp.coupon_id OR cc.coupon_id = c.coupon_id) AND c.status = '1' AND c.date_start < NOW() AND c.date_end > NOW())
-  WHERE p.product_id = '${product_id}' AND pd.language = '${reqLanguage}' AND p.status = '1' AND cat.status = '1' ORDER BY ps.price, -c.amount
+  WHERE p.product_id = '${product_id}' AND pd.language = '${reqLanguage}' AND p.status = '1' AND taxo.status = '1' ORDER BY ps.price, -c.amount
               `;
 
   const [product, _] = await db.query(sql);
@@ -44,7 +45,7 @@ exports.getProduct = async (product_id, includes = fullVer) => {
 
   if (result && result.product_id) {
     //images
-    result.image = result.image.split(",");
+    result.images = await this.getProductImages(result.product_id);
 
     //Tax
     const calculateTax =
@@ -131,37 +132,41 @@ exports.getProducts = async (filters) => {
   const _limit = perPage || 20;
   const _start = (_page - 1) * _limit;
 
-  let sql = `SELECT p.product_id, p.quantity, p.image, p.price, MIN(ps.price) AS special, p.points, p.tax_id, p.available_at,
-              p.view, p.sold, pd.title, pd.description, pd.tags, pd.meta_title, pd.meta_description, pd.meta_keywords, t.value AS tax_value,
-              c.code AS coupon_code, MAX(c.amount) AS coupon_amount, c.type AS coupon_type              
-              FROM product p
-              LEFT JOIN product_description pd ON(p.product_id = pd.product_id)
-              LEFT JOIN product_category pc ON(p.product_id = pc.product_id)
-              INNER JOIN category cat ON(pc.category_id = cat.category_id AND cat.status = '1')
-              LEFT JOIN product_filter pf ON(p.product_id = pf.product_id)
-              LEFT JOIN product_special ps ON(p.product_id = ps.product_id AND ps.deadline > NOW() AND ps.status = '1' AND ps.price > 0)
-              LEFT JOIN tax t ON(p.tax_id = t.tax_id AND t.status = '1')
-              LEFT JOIN coupon_product cp ON(cp.product_id = p.product_id)
-              LEFT JOIN coupon_category cc ON(cc.category_id = pc.category_id)
-              LEFT JOIN coupon c ON((c.coupon_id = cp.coupon_id OR cc.coupon_id = c.coupon_id) AND c.status = '1' AND c.date_start < NOW() AND c.date_end > NOW())
-              `;
-
-  sql += ` WHERE p.status = '1' AND pd.language = '${reqLanguage}'`;
-
+  let sql = `
+  SELECT p.product_id, p.quantity, p.price, MIN(ps.price) AS special, p.points, p.tax_id, p.available_at,
+  p.view, p.sold, pd.title, pd.description, pd.tags, pd.meta_title, pd.meta_description, pd.meta_keywords, t.value AS tax_value,
+  c.code AS coupon_code, c.amount AS coupon_amount, c.type AS coupon_type              
+  FROM product p
+  LEFT JOIN product_description pd ON(p.product_id = pd.product_id)
+  LEFT JOIN taxonomy_relationship tr ON(tr.object_id = p.product_id)
+  LEFT JOIN taxonomy_description td ON(td.taxonomy_id = tr.taxonomy_id AND td.language = '${reqLanguage}')
+  LEFT JOIN taxonomy taxo ON(taxo.taxonomy_id = td.taxonomy_id AND (taxo.type = 'product_category' OR taxo.type = 'product_filter'))
+  LEFT JOIN product_special ps ON(p.product_id = ps.product_id AND ps.deadline > NOW() AND ps.status = '1' AND ps.price > 0)
+  LEFT JOIN tax t ON(p.tax_id = t.tax_id AND t.status = '1')
+  LEFT JOIN coupon_product cp ON(cp.product_id = p.product_id)
+  LEFT JOIN coupon_category cc ON(cc.taxonomy_id = taxo.taxonomy_id AND taxo.type = 'product_category')
+  LEFT JOIN coupon c ON((c.coupon_id = cp.coupon_id OR cc.coupon_id = c.coupon_id) AND c.status = '1' AND c.date_start < NOW() AND c.date_end > NOW())
+  `;
+  sql += ` WHERE p.status = '1' AND pd.language = '${reqLanguage}' `;
   if (category) {
-    category.split(",").forEach((cat, i) => {
-      const op = i === 0 ? "AND" : "OR";
-      sql += ` ${op} pc.category_id = '${cat}'`;
-    });
+    i = 0;
+    sql += ` AND (`;
+    for (const __c of category.split(",")) {
+      sql += ` ${i > 0 ? "OR" : ""} taxo.taxonomy_id = '${__c}'`;
+      i++;
+    }
+    sql += ` AND taxo.type = 'product_category')`;
   }
-
   if (filter) {
-    filter.split(",").forEach((cat, i) => {
-      const op = i === 0 ? "AND" : "OR";
-      sql += ` ${op} pf.filter_id = '${cat}'`;
-    });
+    i = 0;
+    let op = category ? "OR" : "AND";
+    sql += ` ${op} (`;
+    for (const __f of filter.split(",")) {
+      sql += ` ${i > 0 ? "OR" : ""} taxo.taxonomy_id = '${__f}'`;
+      i++;
+    }
+    sql += ` AND taxo.type = 'product_filter')`;
   }
-
   if (special) {
     sql += ` AND (ps.deadline > NOW() AND ps.status = '1' AND ps.price > 0 OR c.status = '1' AND c.date_start < NOW() AND c.date_end > NOW())`;
   }
@@ -205,6 +210,9 @@ exports.getProducts = async (filters) => {
       //get filters
       const filters = await this.getProductFilters(product.product_id);
 
+      //images
+      const images = await this.getProductImages(product.product_id);
+
       //Currency
       const currConfig = Settings.getSetting("config", "currency").currency;
       const currency = i18next.t(`common:${currConfig}`);
@@ -224,9 +232,9 @@ exports.getProducts = async (filters) => {
       products.push({
         product_id: product.product_id,
         quantity: product.quantity,
-        image: product.image.split(","),
         price: +price,
         special: +special,
+        images,
         currency: currency || "",
         coupon,
         points: product.points,
@@ -246,30 +254,37 @@ exports.getProducts = async (filters) => {
 exports.getTotalProducts = async (filters) => {
   const { category, filter, special, q } = filters;
 
-  let sql = `SELECT COUNT(DISTINCT p.product_id) as total FROM product p
-            LEFT JOIN product_description pd ON(p.product_id = pd.product_id)
-            LEFT JOIN product_category pc ON(p.product_id = pc.product_id)
-            INNER JOIN category cat ON(pc.category_id = cat.category_id AND cat.status = '1')
-            LEFT JOIN product_filter pf ON(p.product_id = pf.product_id)
-            LEFT JOIN product_special ps ON(p.product_id = ps.product_id)
-            LEFT JOIN coupon_product cp ON(cp.product_id = p.product_id)
-            LEFT JOIN coupon_category cc ON(cc.category_id = pc.category_id)
-            LEFT JOIN coupon c ON(c.coupon_id = cp.coupon_id OR cc.coupon_id = c.coupon_id)
-          `;
+  let sql = `
+  SELECT COUNT(DISTINCT p.product_id) as total FROM product p
+  LEFT JOIN product_description pd ON(p.product_id = pd.product_id)
+  LEFT JOIN taxonomy_relationship tr ON(tr.object_id = p.product_id)
+  LEFT JOIN taxonomy_description td ON(td.taxonomy_id = tr.taxonomy_id AND td.language = '${reqLanguage}')
+  LEFT JOIN taxonomy taxo ON(taxo.taxonomy_id = td.taxonomy_id AND (taxo.type = 'product_category' OR taxo.type = 'product_filter'))
+  LEFT JOIN product_special ps ON(p.product_id = ps.product_id AND ps.deadline > NOW() AND ps.status = '1' AND ps.price > 0)
+  LEFT JOIN coupon_product cp ON(cp.product_id = p.product_id)
+  LEFT JOIN coupon_category cc ON(cc.taxonomy_id = taxo.taxonomy_id AND taxo.type = 'product_category')
+  LEFT JOIN coupon c ON((c.coupon_id = cp.coupon_id OR cc.coupon_id = c.coupon_id) AND c.status = '1' AND c.date_start < NOW() AND c.date_end > NOW())
+  `;
 
   sql += ` WHERE p.status = '1' AND pd.language = '${reqLanguage}'`;
-
   if (category) {
-    category.split(",").forEach((cat, i) => {
-      const op = i === 0 ? "AND" : "OR";
-      sql += ` ${op} pc.category_id = '${cat}'`;
-    });
+    i = 0;
+    sql += ` AND (`;
+    for (const __c of category.split(",")) {
+      sql += ` ${i > 0 ? "OR" : ""} taxo.taxonomy_id = '${__c}'`;
+      i++;
+    }
+    sql += ` AND taxo.type = 'product_category')`;
   }
   if (filter) {
-    filter.split(",").forEach((cat, i) => {
-      const op = i === 0 ? "AND" : "OR";
-      sql += ` ${op} pf.filter_id = '${cat}'`;
-    });
+    i = 0;
+    let op = category ? "OR" : "AND";
+    sql += ` ${op} (`;
+    for (const __f of filter.split(",")) {
+      sql += ` ${i > 0 ? "OR" : ""} taxo.taxonomy_id = '${__f}'`;
+      i++;
+    }
+    sql += ` AND taxo.type = 'product_filter')`;
   }
   if (special) {
     sql += ` AND (ps.deadline > NOW() AND ps.status = '1' AND ps.price > 0 OR c.status = '1' AND c.date_start < NOW() AND c.date_end > NOW())`;
@@ -300,10 +315,10 @@ exports.findOne = async (product_id) => {
 
 exports.getProductCategories = async (product_id) => {
   const [categories, fields] = await db.query(
-    `SELECT c.category_id AS id, cd.title, cd.description FROM product_category pc
-      LEFT JOIN category_description cd ON(pc.category_id = cd.category_id AND cd.language = '${reqLanguage}')
-      LEFT JOIN category c ON(c.category_id = pc.category_id)
-      WHERE pc.product_id = ${product_id} AND c.status = '1'`
+    `SELECT t.taxonomy_id AS id, t.status, td.title, td.description FROM taxonomy_relationship tr
+      LEFT JOIN taxonomy_description td ON(tr.taxonomy_id = td.taxonomy_id AND td.language = '${reqLanguage}')
+      LEFT JOIN taxonomy t ON(t.taxonomy_id = td.taxonomy_id)
+      WHERE tr.object_id = ${product_id} AND t.type = 'product_category'`
   );
 
   return categories;
@@ -341,15 +356,35 @@ exports.getProductWholesales = async (product_id) => {
 };
 
 exports.getProductFilters = async (product_id) => {
-  const [filters, _f] = await db.query(
-    `SELECT f.filter_id AS id, fd.title FROM product_filter pf
-      LEFT JOIN filter_description fd ON(pf.filter_id = fd.filter_id AND fd.language = '${reqLanguage}')
-      LEFT JOIN filter f ON(f.filter_id = pf.filter_id)
-      WHERE pf.product_id = ${product_id} AND f.status = '1'`
+  const [filters, fields] = await db.query(
+    `SELECT t.taxonomy_id AS id, t.status, td.title, td.description FROM taxonomy_relationship tr
+      LEFT JOIN taxonomy_description td ON(tr.taxonomy_id = td.taxonomy_id AND td.language = '${reqLanguage}')
+      LEFT JOIN taxonomy t ON(t.taxonomy_id = td.taxonomy_id)
+      WHERE tr.object_id = ${product_id} AND t.type = 'product_filter'`
   );
+
   return filters;
 };
+exports.getProductImages = async (product_id) => {
+  const [images, fields] = await db.query(
+    `SELECT media_id AS id  FROM product_media WHERE product_id = ${product_id}`
+  );
 
+  let _images = [
+    {
+      isDir: false,
+      ext: ".png",
+      path: staticHost + "/media/no_photo.png",
+      isImg: true,
+    },
+  ];
+  let idx = 0;
+  for (const img of images) {
+    _images[idx] = await Media.getMediaUrlById(img.id);
+    idx++;
+  }
+  return _images;
+};
 exports.addViewCount = (product_id, currentView) => {
   db.query(`UPDATE product SET ? WHERE product_id = '${product_id}'`, {
     view: ++currentView,

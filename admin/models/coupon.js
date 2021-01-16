@@ -5,19 +5,14 @@ const { i18next } = require("../../i18next");
 
 exports.getCoupons = async (data) => {
   const { q, page, perPage, sort, direction } = data;
-
-  const _page = page > 0 ? page : 1;
-  const _limit = perPage;
-  const _start = (_page - 1) * _limit;
-  const sorting = sort || "date_added";
+  const _start = (page - 1) * perPage;
 
   let sql = `SELECT *, (SELECT COUNT(*) FROM coupon_history WHERE coupon_id = c.coupon_id) AS used
   FROM coupon c
   WHERE CONCAT_WS(c.title, c.code, c.amount) LIKE '%${q}%'
-  ORDER BY c.${sorting} ${direction} LIMIT ${_start}, ${_limit}`;
+  ORDER BY c.${sort} ${direction} LIMIT ${_start}, ${perPage}`;
 
   const [coupons, fields] = await db.query(sql);
-
   return coupons;
 };
 
@@ -38,9 +33,11 @@ exports.getCoupon = async (coupon_id = 0, code) => {
   SELECT c.*,
   CONCAT(
   '[',
-    GROUP_CONCAT(
-      DISTINCT
-      JSON_OBJECT("product_id", cp.product_id, "title", pd.title)
+  GROUP_CONCAT(
+    DISTINCT
+    CASE WHEN pd.product_id IS NOT NULL THEN
+    JSON_OBJECT("id", pd.product_id, "title", pd.title)
+    END
       )
   ,']'
   )
@@ -49,7 +46,9 @@ exports.getCoupon = async (coupon_id = 0, code) => {
     '[',
       GROUP_CONCAT(
       DISTINCT
-      JSON_OBJECT("category_id", cc.category_id, "title", cd.title)
+      CASE WHEN td.taxonomy_id IS NOT NULL AND t.type = 'product_category' THEN
+      JSON_OBJECT("id", td.taxonomy_id, "title", td.title)
+      END
       )
     ,']'
     )
@@ -58,16 +57,17 @@ exports.getCoupon = async (coupon_id = 0, code) => {
   LEFT JOIN coupon_product cp ON(cp.coupon_id = c.coupon_id)
   LEFT JOIN product_description pd ON(cp.product_id = pd.product_id AND pd.language = '${reqLanguage}')
   LEFT JOIN coupon_category cc ON(cc.coupon_id = c.coupon_id)
-  LEFT JOIN category_description cd ON(cc.category_id = cd.category_id AND cd.language = '${reqLanguage}')
+  LEFT JOIN taxonomy_description td ON(cc.taxonomy_id = td.taxonomy_id AND td.language = '${reqLanguage}')
+  LEFT JOIN taxonomy t ON(td.taxonomy_id = t.taxonomy_id)
   `;
 
   if (code) {
     const couponCode = code.trim();
     //Validation purpose
-    sql += `  WHERE c.code = '${couponCode}' AND c.status = '1' AND c.date_start < NOW() AND c.date_end > NOW()`;
+    sql += ` WHERE c.code = '${couponCode}' AND c.status = '1' AND c.date_start < NOW() AND c.date_end > NOW()`;
   } else {
     //Admin view/edit purpose
-    sql += `  WHERE c.coupon_id = '${coupon_id}' `;
+    sql += ` WHERE c.coupon_id = '${coupon_id}' `;
   }
 
   let coupon;
@@ -76,10 +76,8 @@ exports.getCoupon = async (coupon_id = 0, code) => {
 
   if (query.length && query[0].coupon_id) {
     coupon = query[0];
-    coupon.products = JSON.parse(coupon.products).filter((p) => p.product_id);
-    coupon.categories = JSON.parse(coupon.categories).filter(
-      (c) => c.category_id
-    );
+    coupon.products = JSON.parse(coupon.products) || [];
+    coupon.categories = JSON.parse(coupon.categories) || [];
   }
 
   return coupon;
@@ -107,7 +105,7 @@ exports.addCoupon = withTransaction(async (transaction, body) => {
     for (const cat of categories) {
       await transaction.query(`INSERT INTO coupon_category SET ?`, {
         coupon_id: coupon.insertId,
-        category_id: cat,
+        taxonomy_id: cat,
       });
     }
   }
@@ -140,28 +138,24 @@ exports.updateCoupon = withTransaction(async (transaction, data) => {
     );
   }
 
-  if (products.length) {
-    await transaction.query(
-      `DELETE from coupon_product WHERE coupon_id = ${coupon_id}`
-    );
-    for (const prodId of products) {
-      await transaction.query("INSERT INTO coupon_product SET ?", {
-        coupon_id,
-        product_id: prodId,
-      });
-    }
+  await transaction.query(
+    `DELETE from coupon_product WHERE coupon_id = ${coupon_id}`
+  );
+  for (const prodId of products) {
+    await transaction.query("INSERT INTO coupon_product SET ?", {
+      coupon_id,
+      product_id: prodId,
+    });
   }
 
-  if (categories.length) {
-    await transaction.query(
-      `DELETE from coupon_category WHERE coupon_id = ${coupon_id}`
-    );
-    for (const catId of categories) {
-      await transaction.query("INSERT INTO coupon_category SET ?", {
-        coupon_id,
-        category_id: catId,
-      });
-    }
+  await transaction.query(
+    `DELETE from coupon_category WHERE coupon_id = ${coupon_id}`
+  );
+  for (const catId of categories) {
+    await transaction.query("INSERT INTO coupon_category SET ?", {
+      coupon_id,
+      taxonomy_id: catId,
+    });
   }
 
   await transaction.commit();

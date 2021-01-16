@@ -2,6 +2,7 @@ const db = require("../../config/db");
 const Settings = require("../models/settings");
 const { i18next } = require("../../i18next");
 const { getDaysInMonth } = require("date-fns");
+const { getProductImages } = require("./product");
 
 exports.getNumbers = async () => {
   const needactionorders = await needActionOrders();
@@ -194,7 +195,7 @@ const getGeoChart = async (monthly, daily) => {
 
 const getMostViewdProducts = async () => {
   let sql = `
-  SELECT p.product_id AS id, pd.title, p.image, p.view AS value FROM product p
+  SELECT p.product_id AS id, pd.title, p.view AS value FROM product p
   LEFT JOIN product_description pd ON(p.product_id = pd.product_id)
   WHERE pd.language = '${reqLanguage}'
   ORDER BY p.view DESC
@@ -205,7 +206,7 @@ const getMostViewdProducts = async () => {
 
   if (query.length) {
     for (const prod of query) {
-      prod.image = prod.image.split(",");
+      prod.image = await getProductImages(prod.id);
     }
   }
 
@@ -213,7 +214,7 @@ const getMostViewdProducts = async () => {
 };
 const getMostSoldProducts = async () => {
   let sql = `
-  SELECT p.product_id AS id, pd.title, p.image, p.sold AS value FROM product p
+  SELECT p.product_id AS id, pd.title, p.sold AS value FROM product p
   LEFT JOIN product_description pd ON(p.product_id = pd.product_id)
   WHERE pd.language = '${reqLanguage}'
   ORDER BY p.sold DESC
@@ -224,7 +225,7 @@ const getMostSoldProducts = async () => {
 
   if (query.length) {
     for (const prod of query) {
-      prod.image = prod.image.split(",");
+      prod.image = await getProductImages(prod.id);
     }
   }
 

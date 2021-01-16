@@ -84,7 +84,7 @@ exports.getCart = async (data) => {
         item_id: item.item_id,
         product_id: item.product_id,
         quantity: item.quantity,
-        image: productInfo.image,
+        images: productInfo.images,
         title: productInfo.title,
         weight: productInfo.weight,
         price: price,

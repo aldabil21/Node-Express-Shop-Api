@@ -79,11 +79,9 @@ exports.getCategory = async (req, res, next) => {
 //@access   ADMIN
 //@desc     Add Category
 exports.addCategory = async (req, res, next) => {
-  const data = req.body;
   try {
+    const data = req.body;
     ErrorResponse.validateRequest(req);
-    data.image = req.file ? req.file.path : "images/no-photo-thumb.png";
-
     const category = await Categories.addCategory(data);
     res.status(201).json({ success: true, data: category });
   } catch (err) {
@@ -103,19 +101,6 @@ exports.updateCategory = async (req, res, next) => {
       ...body,
     };
     ErrorResponse.validateRequest(req);
-
-    const prev = JSON.parse(body.prevImg);
-    const nothumb = "images/no-photo-thumb.png";
-    let image = prev.length ? prev[0] : "";
-    if (req.file) {
-      image = req.file.path;
-    }
-    if (!image) {
-      image = nothumb;
-    }
-    delete data.prevImg;
-    data.image = image;
-
     const category = await Categories.updateCategory(data);
     res.status(200).json({ success: true, data: category });
   } catch (err) {

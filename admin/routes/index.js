@@ -6,8 +6,6 @@ const adminAtuh = require("./auth");
 const adminProducts = require("./product");
 const coupon = require("./coupon");
 const specials = require("./specials");
-const filters = require("./filters");
-const categories = require("./categories");
 const tax = require("./tax");
 const attribute = require("./attribute");
 const orders = require("./orders");
@@ -18,12 +16,12 @@ const shippings = require("./shipping");
 const admins = require("./admins");
 const profile = require("./profile");
 const statistics = require("./statistics");
+const media = require("./media");
+const taxonomy = require("./taxonomy");
 
 router.use("/auth", adminAtuh);
 router.use("/products", adminProducts);
 router.use("/products", specials);
-router.use("/filters", filters);
-router.use("/categories", categories);
 router.use("/coupons", coupon);
 router.use("/tax", tax);
 router.use("/attributes", attribute);
@@ -35,7 +33,8 @@ router.use("/shippings", shippings);
 router.use("/admins", admins);
 router.use("/profile", profile);
 router.use("/statistics", statistics);
-
+router.use("/media", media);
+router.use("/taxonomy", taxonomy);
 // router.get((req, res) =>
 //   res.sendFile(path.join(__dirname, "..", "..", "dashboard", "index.html"))
 // );

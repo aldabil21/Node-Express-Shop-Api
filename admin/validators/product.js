@@ -31,9 +31,6 @@ const priceChecker = {
 exports.productSchema = checkSchema({
   quantity: quantityChecker,
   description: {
-    customSanitizer: {
-      options: (value) => JSON.parse(value),
-    },
     isArray: {
       errorMessage: "Product description must be an array",
     },
@@ -116,9 +113,6 @@ exports.productSchema = checkSchema({
   },
   options: {
     in: ["body"],
-    customSanitizer: {
-      options: (value) => JSON.parse(value),
-    },
     errorMessage: "Options Must be an Array",
     isArray: true,
   },
@@ -145,25 +139,25 @@ exports.productSchema = checkSchema({
   },
   category: {
     in: ["body"],
-    customSanitizer: {
-      options: (value) => JSON.parse(value),
-    },
     errorMessage: "Categories must be an Array",
     isArray: true,
   },
   filter: {
     in: ["body"],
-    customSanitizer: {
-      options: (value) => JSON.parse(value),
-    },
     errorMessage: "Filters must be an Array",
     isArray: true,
   },
+  image: {
+    in: ["body"],
+    errorMessage: "Image must be an Array",
+    isArray: true,
+    notEmpty: true,
+    customSanitizer: {
+      options: (value) => value.filter((v) => v),
+    },
+  },
   attribute: {
     in: ["body"],
-    customSanitizer: {
-      options: (value) => JSON.parse(value),
-    },
     errorMessage: "Attributes must be an Array",
     isArray: true,
   },
@@ -195,9 +189,6 @@ exports.productSchema = checkSchema({
   },
   wholesales: {
     in: ["body"],
-    customSanitizer: {
-      options: (value) => JSON.parse(value),
-    },
     errorMessage: "Wholesale prices must be an Array",
     isArray: true,
   },

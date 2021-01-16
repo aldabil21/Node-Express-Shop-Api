@@ -12,7 +12,7 @@ const initi18next = async () => {
     .use(backend)
     .use(middleware.LanguageDetector)
     .init({
-      //   debug: true,
+      // debug: true,
       lng: primary,
       supportedLngs: supportedLngs,
       preload: supportedLngs,
@@ -28,7 +28,9 @@ const initi18next = async () => {
         "attribute",
         "coupon",
         "order",
+        "filesystem",
         "settings",
+        "taxonomy",
       ],
       defaultNS: ["common"],
       // interpolation: {

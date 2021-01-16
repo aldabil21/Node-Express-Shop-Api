@@ -36,7 +36,7 @@ exports.getAttributes = async (data) => {
   sql += ` ORDER BY ${sorter}.${sorting} ${direction}`;
   sql += ` LIMIT ${_start}, ${_limit}`;
 
-  const [attributes, fields] = await db.query(sql);
+  const [attributes, fields] = await db.cache("attributes_", 60).query(sql);
 
   return attributes;
 };
@@ -47,7 +47,7 @@ exports.getTotalAttributes = async (data) => {
   LEFT JOIN attribute_description ad ON(a.attribute_id = ad.attribute_id)
   WHERE ad.language = '${reqLanguage}' AND ad.title LIKE '%${q}%'`;
 
-  const [totals, fields] = await db.query(sql);
+  const [totals, fields] = await db.cache("attributes_", 60).query(sql);
   const { total } = totals[0];
   return total;
 };

@@ -6,33 +6,16 @@ const { i18next } = require("../../i18next");
 //@access   ADMIN
 //@desc     Get Coupons w pagination & search
 exports.getCoupons = async (req, res, next) => {
-  const {
-    q = "",
-    page = 1,
-    perPage = 20,
-    sort = "date_added",
-    direction = "ASC",
-  } = req.query;
-
-  const data = {
-    q,
-    page,
-    perPage,
-    sort,
-    direction,
-  };
-
   try {
+    const data = req.query;
     const coupons = await Coupon.getCoupons(data);
     const totalCount = await Coupon.getTotalCoupons(data);
-
     const pagination = {
       totalCount,
-      currentPage: +page,
-      perPage: +perPage,
-      totalPages: Math.ceil(totalCount / perPage),
+      currentPage: +data.page,
+      perPage: +data.perPage,
+      totalPages: Math.ceil(totalCount / data.perPage),
     };
-
     res.status(200).json({ success: true, data: { coupons, pagination } });
   } catch (err) {
     next(err);

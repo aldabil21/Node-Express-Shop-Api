@@ -1,5 +1,6 @@
 const db = require("../../config/db");
 const { settingsLoader } = require("../../helpers/settings");
+const Media = require("./media");
 
 exports.getGenerals = async () => {
   let sql = `
@@ -8,11 +9,34 @@ exports.getGenerals = async () => {
 
   const [settings, _] = await db.query(sql);
 
+  for (const set of settings) {
+    if (set.key_id === "site_logo") {
+      const value = await Media.getMediaByUrl(set.value, true);
+      set.value = [value];
+    }
+  }
+
   return settings;
 };
 
 exports.updateGenerals = async (data) => {
-  const values = data.map((d) => [d.setting_id, d.code, d.key_id, d.value]);
+  let values = [];
+  for (const key in data) {
+    const d = data[key];
+    if (key === "site_logo") {
+      const { path } = await Media.getMediaUrlById(d.value[0].media_id);
+      values.push([d.setting_id, d.code, d.key_id, path]);
+    } else {
+      values.push([d.setting_id, d.code, d.key_id, d.value]);
+    }
+  }
+  // const values = data.map(async (d) => {
+  //   if (d.key_id === "site_logo") {
+  //     const { path } = await Media.getMediaUrlById(d.value.media_id);
+  //     return [d.setting_id, d.code, d.key_id, path];
+  //   }
+  //   return [d.setting_id, d.code, d.key_id, d.value];
+  // });
 
   let sql = `
   INSERT INTO setting (setting_id, code, key_id, value) VALUES ? ON DUPLICATE KEY UPDATE value = VALUES(value)

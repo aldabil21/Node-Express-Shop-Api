@@ -19,29 +19,7 @@ exports.getGenerals = async (req, res, next) => {
 // @desc     Update General Settings
 exports.updateGenerals = async (req, res, next) => {
   try {
-    const data = req.body;
-    delete data.logo;
-
-    //set image to prev if did not upload image
-    let image = data.prevImg ? JSON.parse(data.prevImg) : "";
-    if (req.file) {
-      //otherwise set it to new uploaded one
-      image = req.file.path;
-    }
-    delete data.prevImg;
-
-    let _settings = [];
-    for (const key in data) {
-      if (key === "site_logo") {
-        const logoSetting = JSON.parse(data[key]);
-        logoSetting.value = image;
-        _settings.push(logoSetting);
-      } else {
-        _settings.push(JSON.parse(data[key]));
-      }
-    }
-
-    const settings = await Settings.updateGenerals(_settings);
+    const settings = await Settings.updateGenerals(req.body);
 
     res.status(200).json({ sucess: true, data: settings });
   } catch (err) {

@@ -8,7 +8,7 @@ const {
   deleteCoupon,
   switchStatus,
 } = require("../controllers/coupon");
-const { couponSchema } = require("../validators/coupon");
+const { couponSchema, getSanitizer } = require("../validators/coupon");
 const authorize = require("../middlewares/authorize");
 
 //@route    GET
@@ -17,6 +17,7 @@ const authorize = require("../middlewares/authorize");
 router.get(
   "/",
   authorize(["Owner", "Administrator", "Manager", "Seller"]),
+  getSanitizer,
   getCoupons
 );
 

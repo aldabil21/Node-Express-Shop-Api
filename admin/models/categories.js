@@ -1,3 +1,4 @@
+const Media = require("./media");
 const db = require("../../config/db");
 const withTransaction = require("../helpers/withTransaction");
 const ErrorResponse = require("../helpers/error");
@@ -10,7 +11,7 @@ exports.getParentCategories = async (data) => {
   const _limit = perPage;
   const _start = (_page - 1) * _limit;
 
-  let sql = `SELECT c.category_id, c.image, c.parent_id, c.sort_order, c.status, cd.title,
+  let sql = `SELECT c.category_id, c.media_id, c.parent_id, c.sort_order, c.status, cd.title,
             cd.description, cd.meta_title, cd.meta_description, cd.meta_keywords
             from category c 
             LEFT JOIN category_description cd ON(c.category_id = cd.category_id)
@@ -29,19 +30,24 @@ exports.getParentCategories = async (data) => {
   }
 
   const [categories, fields] = await db.query(sql);
+  for (const _cat of categories) {
+    _cat.image = await Media.getMediaUrlById(_cat.media_id);
+  }
 
   return categories;
 };
 
 exports.getChildCategories = async (parent_id) => {
-  let sql = `SELECT c.category_id, c.image, c.parent_id, c.sort_order, c.status, cd.title,
+  let sql = `SELECT c.category_id,c.media_id, c.parent_id, c.sort_order, c.status, cd.title,
   cd.description, cd.meta_title, cd.meta_description, cd.meta_keywords
   from category c
   LEFT JOIN category_description cd ON(c.category_id = cd.category_id)
   WHERE c.parent_id ='${parent_id}' AND cd.language = '${reqLanguage}'
   `;
   const [categories, fields] = await db.query(sql);
-
+  for (const _cat of categories) {
+    _cat.image = await Media.getMediaUrlById(_cat.media_id);
+  }
   return categories;
 };
 
@@ -59,7 +65,7 @@ exports.getTotalCategories = async (data) => {
 };
 
 exports.getCategory = async (category_id, withChildren = true) => {
-  let sql = `SELECT c.category_id, c.image, c.parent_id, c.sort_order, c.status, cd.title,
+  let sql = `SELECT c.category_id, c.media_id, c.parent_id, c.sort_order, c.status, cd.title,
   cd.description, cd.meta_title, cd.meta_description, cd.meta_keywords
   FROM category c
   LEFT JOIN category_description cd ON(c.category_id = cd.category_id)
@@ -67,15 +73,19 @@ exports.getCategory = async (category_id, withChildren = true) => {
   `;
   const [category, fields] = await db.query(sql);
 
-  if (category.length && withChildren) {
-    this.getChildCategories(category.category_id);
+  let _cat = null;
+  if (category.length) {
+    _cat = category[0];
+    _cat.image = await Media.getMediaUrlById(_cat.media_id);
+    if (withChildren) {
+      // this.getChildCategories(category.category_id);
+    }
   }
-
-  return category[0];
+  return _cat;
 };
 
 exports.getCategoryForEdit = async (category_id) => {
-  let sql = `SELECT c.category_id, c.image, c.parent_id, c.sort_order, c.status,
+  let sql = `SELECT c.category_id, c.media_id, c.parent_id, c.sort_order, c.status,
   CONCAT(
   '[',
     GROUP_CONCAT(
@@ -95,6 +105,7 @@ exports.getCategoryForEdit = async (category_id) => {
   let result = category[0];
   if (result && result.category_id) {
     result.description = JSON.parse(result.description);
+    result.image = await Media.getMediaUrlById(result.media_id);
   } else {
     result = null;
   }
@@ -103,36 +114,33 @@ exports.getCategoryForEdit = async (category_id) => {
 };
 
 exports.addCategory = withTransaction(async (transaction, body) => {
-  const description = [...body.description];
-  delete body.description;
-
   const [category, _] = await transaction.query(`INSERT INTO category SET ?`, {
-    ...body,
+    parent_id: body.parent_id,
+    media_id: body.image,
+    sort_order: body.sort_order,
+    status: body.status,
   });
 
-  if (description) {
-    for (const desc of description) {
-      await transaction.query(`INSERT INTO category_description SET ?`, {
-        category_id: category.insertId,
-        ...desc,
-      });
-    }
+  for (const desc of body.description) {
+    await transaction.query(`INSERT INTO category_description SET ?`, {
+      category_id: category.insertId,
+      ...desc,
+    });
   }
+
   await transaction.commit();
 
   return this.getCategory(category.insertId);
 });
 
 exports.updateCategory = withTransaction(async (transaction, data) => {
-  const description = [...data.description];
-  const category_id = data.id;
-  delete data.description;
-  delete data.id;
-
   const [category, _] = await transaction.query(
-    `UPDATE category SET ? WHERE category_id = '${category_id}'`,
+    `UPDATE category SET ? WHERE category_id = '${data.id}'`,
     {
-      ...data,
+      parent_id: data.parent_id,
+      media_id: data.image || 0,
+      sort_order: data.sort_order,
+      status: data.status,
       date_modified: new Date(),
     }
   );
@@ -140,23 +148,21 @@ exports.updateCategory = withTransaction(async (transaction, data) => {
   if (!category.affectedRows) {
     throw new ErrorResponse(
       404,
-      i18next.t("common:not_found", { id: category_id })
+      i18next.t("common:not_found", { id: data.id })
     );
   }
 
-  if (description) {
-    for (const desc of description) {
-      await transaction.query(`REPLACE INTO category_description SET ? `, {
-        category_id: category_id,
-        language: desc.language,
-        ...desc,
-      });
-    }
+  for (const desc of data.description) {
+    await transaction.query(`REPLACE INTO category_description SET ? `, {
+      category_id: data.id,
+      language: desc.language,
+      ...desc,
+    });
   }
 
   await transaction.commit();
 
-  return this.getCategory(category_id);
+  return this.getCategory(data.id);
 });
 
 exports.deleteCategory = async (category_id) => {
@@ -180,7 +186,7 @@ exports.deleteCategory = async (category_id) => {
 exports.getAllRaw = async (q) => {
   const query = q || "";
 
-  let sql = `SELECT c.category_id, c.image, c.parent_id, c.sort_order, c.status, cd.title, dparent.title AS parent
+  let sql = `SELECT c.category_id, c.media_id, c.parent_id, c.sort_order, c.status, cd.title, dparent.title AS parent
   FROM category c 
   LEFT JOIN category_description cd ON(c.category_id = cd.category_id)
   LEFT JOIN category cparent ON(cparent.category_id = c.parent_id)

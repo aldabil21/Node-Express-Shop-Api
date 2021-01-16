@@ -1,5 +1,6 @@
 const Settings = require("./settings");
 const Tax = require("./tax");
+const Media = require("./media");
 const db = require("../../config/db");
 const withTransaction = require("../helpers/withTransaction");
 const ErrorResponse = require("../helpers/error");
@@ -18,31 +19,45 @@ exports.getProduct = async (product_id) => {
   )
   AS description,
   CONCAT(
-  '[',
-  GROUP_CONCAT(
-    DISTINCT
-      CASE WHEN pc.category_id IS NOT NULL THEN
-      JSON_OBJECT("id", pc.category_id, "title", cd.title, "status",c.status)
-      ELSE
-      ""
-      END
-      )
-  ,']'
-  )
+    '[',
+      GROUP_CONCAT(DISTINCT
+        CASE WHEN t.type = 'product_category' THEN
+        JSON_OBJECT("id", t.taxonomy_id, "title", td.title, "status", t.status)
+        END
+        )
+    ,']'
+    )
   AS categories,
   CONCAT(
-  '[',
-    GROUP_CONCAT(
-      DISTINCT
-      CASE WHEN pf.filter_id IS NOT NULL THEN
-      JSON_OBJECT("id", pf.filter_id, "title", fd.title, "status",f.status)
-      ELSE
-      ""
-      END
+    '[',
+      GROUP_CONCAT(DISTINCT
+        CASE WHEN t.type = 'product_filter' THEN
+        JSON_OBJECT("id", t.taxonomy_id, "title", td.title, "status", t.status)
+        END
       )
-  ,']'
+    ,']'
   )
   AS filters,
+  CONCAT(
+    '[',
+      GROUP_CONCAT(
+        DISTINCT
+        CASE WHEN ad.attribute_id IS NOT NULL THEN
+        JSON_OBJECT(
+          "attribute", JSON_OBJECT("attribute_id", ad.attribute_id, "title", ad.title),
+          "description", CONCAT(
+            '[',
+              (SELECT GROUP_CONCAT(DISTINCT JSON_OBJECT("language",language, "description", description)) AS a FROM product_attribute WHERE attribute_id = pa.attribute_id AND product_id = p.product_id)
+            ,']'
+            )
+          )
+          ELSE
+          ""
+          END
+        )
+    ,']'
+    )
+  AS attributes,
   CONCAT(
   '[',
     GROUP_CONCAT(
@@ -69,26 +84,6 @@ exports.getProduct = async (product_id) => {
   '[',
     GROUP_CONCAT(
       DISTINCT
-      CASE WHEN ad.attribute_id IS NOT NULL THEN
-      JSON_OBJECT(
-        "attribute", JSON_OBJECT("attribute_id", ad.attribute_id, "title", ad.title),
-        "description", CONCAT(
-          '[',
-            (SELECT GROUP_CONCAT(DISTINCT JSON_OBJECT("language",language, "description", description)) AS a FROM product_attribute WHERE attribute_id = pa.attribute_id AND product_id = p.product_id)
-          ,']'
-          )
-        )
-        ELSE
-        ""
-        END
-      )
-  ,']'
-  )
-  AS attributes,
-  CONCAT(
-  '[',
-    GROUP_CONCAT(
-      DISTINCT
       CASE WHEN pw.quantity IS NOT NULL THEN
       JSON_OBJECT(
         "quantity", pw.quantity,
@@ -103,15 +98,12 @@ exports.getProduct = async (product_id) => {
   AS wholesales
   FROM product p
   LEFT JOIN product_description pd ON(p.product_id = pd.product_id)
-  LEFT JOIN product_category pc ON(pc.product_id = p.product_id)
-  LEFT JOIN category_description cd ON(pc.category_id = cd.category_id AND cd.language = '${reqLanguage}')
-  LEFT JOIN category c ON(pc.category_id = c.category_id)
-  LEFT JOIN product_filter pf ON(pf.product_id = p.product_id)
-  LEFT JOIN filter_description fd ON(fd.filter_id = pf.filter_id AND fd.language = '${reqLanguage}')
-  LEFT JOIN filter f ON(pf.filter_id = f.filter_id)
-  LEFT JOIN product_option po ON(po.product_id = p.product_id)
+  LEFT JOIN taxonomy_relationship tr ON(tr.object_id = p.product_id)
+  LEFT JOIN taxonomy_description td ON(tr.taxonomy_id = td.taxonomy_id AND td.language = '${reqLanguage}')
+  LEFT JOIN taxonomy t ON(t.taxonomy_id = tr.taxonomy_id)
   LEFT JOIN product_attribute pa ON(pa.product_id = p.product_id AND pa.language = '${reqLanguage}')
   LEFT JOIN attribute_description ad ON(ad.attribute_id = pa.attribute_id AND ad.language = '${reqLanguage}')
+  LEFT JOIN product_option po ON(po.product_id = p.product_id)
   LEFT JOIN product_wholesale pw ON(pw.product_id = p.product_id)
   WHERE p.product_id = '${product_id}'
   `;
@@ -129,11 +121,11 @@ exports.getProduct = async (product_id) => {
 
   if (result && result.product_id) {
     //Parsin values (maria db 10.2 does not support JSON_OBJECTAGG)
-    result.description = JSON.parse(result.description);
-    result.categories = JSON.parse(result.categories);
-    result.filters = JSON.parse(result.filters);
-    result.options = JSON.parse(result.options);
+    result.description = JSON.parse(result.description) || [];
+    result.categories = JSON.parse(result.categories) || [];
+    result.filters = JSON.parse(result.filters) || [];
     result.attributes = JSON.parse(result.attributes);
+    result.options = JSON.parse(result.options);
     result.wholesales = JSON.parse(result.wholesales);
     if (result.options.length) {
       for (const op of result.options) {
@@ -146,7 +138,7 @@ exports.getProduct = async (product_id) => {
       }
     }
     //images
-    result.image = result.image.split(",");
+    result.images = await this.getProductImages(result.product_id);
   } else {
     result = null;
   }
@@ -170,45 +162,50 @@ exports.getProducts = async (filters) => {
   const _limit = perPage || 20;
   const _start = (_page - 1) * _limit;
 
-  let sql = `SELECT p.product_id, p.quantity, p.image, p.price, p.points, p.tax_id, p.available_at,
-              p.view, p.sold, p.status, p.date_added, MIN(ps.price) AS special, pd.title, pd.description, pd.tags, pd.meta_title, pd.meta_description, pd.meta_keywords, t.value AS tax_value,
-              c.code AS coupon_code, MAX(c.amount) AS coupon_amount, c.type AS coupon_type              
-              FROM product p
-              LEFT JOIN product_description pd ON(p.product_id = pd.product_id)
-              LEFT JOIN product_category pc ON(p.product_id = pc.product_id)
-              LEFT JOIN category cat ON(pc.category_id = cat.category_id)
-              LEFT JOIN product_filter pf ON(p.product_id = pf.product_id)
-              LEFT JOIN product_special ps ON(p.product_id = ps.product_id AND ps.deadline > NOW() AND ps.status = '1' AND ps.price > 0)
-              LEFT JOIN tax t ON(p.tax_id = t.tax_id AND t.status = '1')
-              LEFT JOIN coupon_product cp ON(cp.product_id = p.product_id)
-              LEFT JOIN coupon_category cc ON(cc.category_id = pc.category_id)
-              LEFT JOIN coupon c ON((c.coupon_id = cp.coupon_id OR cc.coupon_id = c.coupon_id) AND c.status = '1' AND c.date_start < NOW() AND c.date_end > NOW())
-              `;
+  let sql = `SELECT p.product_id, p.quantity, p.price, p.points, p.tax_id, p.available_at,
+  p.view, p.sold, p.status, p.date_added, MIN(ps.price) AS special, pd.title, pd.description, pd.tags, pd.meta_title, pd.meta_description, pd.meta_keywords, t.value AS tax_value,
+  c.code AS coupon_code, MAX(c.amount) AS coupon_amount, c.type AS coupon_type              
+  FROM product p
+  LEFT JOIN product_description pd ON(p.product_id = pd.product_id)
+  LEFT JOIN product_media pm ON(p.product_id = pm.product_id)
+  
+  LEFT JOIN taxonomy_relationship tr ON(tr.object_id = p.product_id)
+  LEFT JOIN taxonomy taxo ON(taxo.taxonomy_id = tr.taxonomy_id)
+  
+  LEFT JOIN product_special ps ON(p.product_id = ps.product_id AND ps.deadline > NOW() AND ps.status = '1' AND ps.price > 0)
+  LEFT JOIN tax t ON(p.tax_id = t.tax_id AND t.status = '1')
+  LEFT JOIN coupon_product cp ON(cp.product_id = p.product_id)
+  LEFT JOIN coupon_category cc ON(taxo.type = 'product_category' AND taxo.taxonomy_id = cc.taxonomy_id)
+  LEFT JOIN coupon c ON((c.coupon_id = cp.coupon_id OR cc.coupon_id = c.coupon_id) AND c.status = '1' AND c.date_start < NOW() AND c.date_end > NOW())
+  `;
 
   sql += ` WHERE pd.language = '${reqLanguage}'`;
-
-  if (category) {
-    category.split(",").forEach((cat, i) => {
-      const op = i === 0 ? "AND" : "OR";
-      sql += ` ${op} pc.category_id = '${cat}'`;
-    });
-  }
-
-  if (filter) {
-    filter.split(",").forEach((cat, i) => {
-      const op = i === 0 ? "AND" : "OR";
-      sql += ` ${op} pf.filter_id = '${cat}'`;
-    });
-  }
 
   if (special) {
     sql += ` AND (ps.deadline > NOW() AND ps.status = '1' AND ps.price > 0 OR c.status = '1' AND c.date_start < NOW() AND c.date_end > NOW())`;
   }
-
+  if (category) {
+    i = 0;
+    sql += ` AND (`;
+    for (const __c of category.split(",")) {
+      sql += ` ${i > 0 ? "OR" : ""} taxo.taxonomy_id = '${__c}'`;
+      i++;
+    }
+    sql += ` AND taxo.type = 'product_category')`;
+  }
+  if (filter) {
+    i = 0;
+    let op = category ? "OR" : "AND";
+    sql += ` ${op} (`;
+    for (const __f of filter.split(",")) {
+      sql += ` ${i > 0 ? "OR" : ""} taxo.taxonomy_id = '${__f}'`;
+      i++;
+    }
+    sql += ` AND taxo.type = 'product_filter')`;
+  }
   if (q) {
     sql += ` AND CONCAT_WS(pd.title, pd.tags, p.product_id, p.price, p.points) LIKE '%${q}%'`;
   }
-
   sql += ` GROUP BY p.product_id`;
 
   if (sort) {
@@ -216,16 +213,15 @@ exports.getProducts = async (filters) => {
     if (sort === "title") {
       selector = "pd";
     }
-    if (sort === "categories") {
-      selector = "cd";
-    }
-    sql += ` ORDER BY ${selector}.${sort}  ${direction}`;
+    // if (sort === "categories") {
+    //   selector = "taxo";
+    // }
+    sql += ` ORDER BY ${selector}.${sort} ${direction}`;
   }
 
   sql += ` LIMIT ${_start}, ${_limit}`;
 
   const [results, _] = await db.query(sql);
-
   let products = [];
   if (results.length) {
     const calculateTax =
@@ -240,6 +236,8 @@ exports.getProducts = async (filters) => {
         special =
           product.special && Tax.calculate(product.tax_value, product.special);
       }
+      // get media
+      const images = await this.getProductImages(product.product_id);
 
       //get categories
       const categories = await this.getProductCategories(product.product_id);
@@ -266,7 +264,7 @@ exports.getProducts = async (filters) => {
       products.push({
         product_id: product.product_id,
         quantity: product.quantity,
-        image: product.image.split(","),
+        images: images,
         price: +price,
         special: +special,
         currency: currency || "",
@@ -288,39 +286,46 @@ exports.getProducts = async (filters) => {
 
 exports.getTotalProducts = async (filters) => {
   const { category, filter, special, q } = filters;
-
   let sql = `SELECT COUNT(DISTINCT p.product_id) as total FROM product p
-            LEFT JOIN product_description pd ON(p.product_id = pd.product_id)
-            LEFT JOIN product_category pc ON(p.product_id = pc.product_id)
-            LEFT JOIN category cat ON(pc.category_id = cat.category_id)
-            LEFT JOIN product_filter pf ON(p.product_id = pf.product_id)
-            LEFT JOIN product_special ps ON(p.product_id = ps.product_id)
-            LEFT JOIN coupon_product cp ON(cp.product_id = p.product_id)
-            LEFT JOIN coupon_category cc ON(cc.category_id = pc.category_id)
-            LEFT JOIN coupon c ON(c.coupon_id = cp.coupon_id OR cc.coupon_id = c.coupon_id)
-          `;
-
+  LEFT JOIN product_description pd ON(p.product_id = pd.product_id)
+  LEFT JOIN product_media pm ON(p.product_id = pm.product_id)
+  
+  LEFT JOIN taxonomy_relationship tr ON(tr.object_id = p.product_id)
+  LEFT JOIN taxonomy taxo ON(taxo.taxonomy_id = tr.taxonomy_id)
+  
+  LEFT JOIN product_special ps ON(p.product_id = ps.product_id AND ps.deadline > NOW() AND ps.status = '1' AND ps.price > 0)
+  LEFT JOIN tax t ON(p.tax_id = t.tax_id AND t.status = '1')
+  LEFT JOIN coupon_product cp ON(cp.product_id = p.product_id)
+  LEFT JOIN coupon_category cc ON(taxo.type = 'product_category' AND taxo.taxonomy_id = cc.taxonomy_id)
+  LEFT JOIN coupon c ON((c.coupon_id = cp.coupon_id OR cc.coupon_id = c.coupon_id) AND c.status = '1' AND c.date_start < NOW() AND c.date_end > NOW())
+  `;
   sql += ` WHERE pd.language = '${reqLanguage}'`;
-
   if (category) {
-    category.split(",").forEach((cat, i) => {
-      const op = i === 0 ? "AND" : "OR";
-      sql += ` ${op} pc.category_id = '${cat}'`;
-    });
+    i = 0;
+    sql += ` AND (`;
+    for (const __c of category.split(",")) {
+      sql += ` ${i > 0 ? "OR" : ""} taxo.taxonomy_id = '${__c}'`;
+      i++;
+    }
+    sql += ` AND taxo.type = 'product_category')`;
   }
   if (filter) {
-    filter.split(",").forEach((cat, i) => {
-      const op = i === 0 ? "AND" : "OR";
-      sql += ` ${op} pf.filter_id = '${cat}'`;
-    });
+    i = 0;
+    let op = category ? "OR" : "AND";
+    sql += ` ${op} (`;
+    for (const __f of filter.split(",")) {
+      sql += ` ${i > 0 ? "OR" : ""} taxo.taxonomy_id = '${__f}'`;
+      i++;
+    }
+    sql += ` AND taxo.type = 'product_filter')`;
   }
   if (special) {
     sql += ` AND (ps.deadline > NOW() AND ps.status = '1' AND ps.price > 0 OR c.status = '1' AND c.date_start < NOW() AND c.date_end > NOW())`;
   }
-
   if (q) {
-    sql += ` AND CONCAT_WS(pd.title, pd.tags, p.product_id ) LIKE '%${q}%'`;
+    sql += ` AND CONCAT_WS(pd.title, pd.tags, p.product_id, p.price, p.points) LIKE '%${q}%'`;
   }
+  // sql += ` GROUP BY p.product_id`;
 
   const [products, _] = await db.query(sql);
   const { total } = products[0];
@@ -330,12 +335,14 @@ exports.getTotalProducts = async (filters) => {
 
 exports.addProduct = withTransaction(async (transaction, body) => {
   const description = [...body.description];
+  const images = [...body.image];
   const options = [...body.options];
   const category = [...body.category];
   const filter = [...body.filter];
   const attribute = [...body.attribute];
   const wholesale_prices = [...body.wholesales];
   delete body.description;
+  delete body.image;
   delete body.options;
   delete body.category;
   delete body.filter;
@@ -343,7 +350,7 @@ exports.addProduct = withTransaction(async (transaction, body) => {
   delete body.wholesales;
 
   // if options exists, this function should decied the product total quantity automaticlly
-  // to avoid user mistaked which may lead to option.quantity > product.quantity
+  // to avoid user mistake which may lead to option.quantity > product.quantity
   // which can cuz "cart_change_notice" when trying to add to cart a specific option that has higher quantity than product.quantity
   if (options && options.length > 0) {
     const { calculatedQty, lowestPrice } = calculateProductQuantityANDPrice(
@@ -372,67 +379,66 @@ exports.addProduct = withTransaction(async (transaction, body) => {
       });
     }
   }
-  //insert category
-  if (category && category.length > 0) {
-    for (let cat of category) {
-      await transaction.query("INSERT INTO product_category SET ?", {
+  //insert images
+  if (images && images.length > 0) {
+    for (let img of images) {
+      await transaction.query("INSERT INTO product_media SET ?", {
+        media_id: img,
         product_id: product.insertId,
-        category_id: cat,
       });
     }
   }
+  //insert category/filter
+  for (let cat of [...category, ...filter]) {
+    await transaction.query("INSERT INTO taxonomy_relationship SET ?", {
+      object_id: product.insertId,
+      taxonomy_id: cat,
+    });
+  }
+  // for (let fil of filter) {
+  //   await transaction.query("INSERT INTO taxonomy_relationship SET ?", {
+  //     product_id: product.insertId,
+  //     filter_id: fil,
+  //   });
+  // }
   //insert options
-  if (options && options.length > 0) {
-    for (let opt of options) {
-      const [inserOp, _] = await transaction.query(
-        "INSERT INTO product_option SET ?",
-        {
-          product_id: product.insertId,
-          quantity: opt.quantity,
-          price: opt.price ? opt.price : body.price,
-        }
-      );
-      for (let optDesc of opt.description) {
-        await transaction.query("INSERT INTO option_description SET ?", {
-          option_id: inserOp.insertId,
-          language: optDesc.language,
-          title: optDesc.title,
-        });
-      }
-    }
-  }
-  //insert attribute
-  if (attribute && attribute.length > 0) {
-    for (let att of attribute) {
-      for (let attDesc of att.description) {
-        await transaction.query("INSERT INTO product_attribute SET ?", {
-          attribute_id: att.attribute_id,
-          product_id: product.insertId,
-          language: attDesc.language,
-          description: attDesc.description,
-        });
-      }
-    }
-  }
-  //insert filter
-  if (filter && filter.length > 0) {
-    for (let fil of filter) {
-      await transaction.query("INSERT INTO product_filter SET ?", {
+  for (let opt of options) {
+    const [inserOp, _] = await transaction.query(
+      "INSERT INTO product_option SET ?",
+      {
         product_id: product.insertId,
-        filter_id: fil,
+        quantity: opt.quantity,
+        price: opt.price ? opt.price : body.price,
+      }
+    );
+    for (let optDesc of opt.description) {
+      await transaction.query("INSERT INTO option_description SET ?", {
+        option_id: inserOp.insertId,
+        language: optDesc.language,
+        title: optDesc.title,
+      });
+    }
+  }
+
+  //insert attribute
+  for (let att of attribute) {
+    for (let attDesc of att.description) {
+      await transaction.query("INSERT INTO product_attribute SET ?", {
+        attribute_id: att.attribute_id,
+        product_id: product.insertId,
+        language: attDesc.language,
+        description: attDesc.description,
       });
     }
   }
 
   //insert wholesale_prices
-  if (wholesale_prices && wholesale_prices.length > 0) {
-    for (let wholesale of wholesale_prices) {
-      await transaction.query("INSERT INTO product_wholesale SET ?", {
-        product_id: product.insertId,
-        quantity: wholesale.quantity,
-        price: wholesale.price,
-      });
-    }
+  for (let wholesale of wholesale_prices) {
+    await transaction.query("INSERT INTO product_wholesale SET ?", {
+      product_id: product.insertId,
+      quantity: wholesale.quantity,
+      price: wholesale.price,
+    });
   }
 
   await transaction.commit();
@@ -442,12 +448,13 @@ exports.addProduct = withTransaction(async (transaction, body) => {
 exports.updateProduct = withTransaction(
   async (transaction, body, product_id) => {
     const description = [...body.description];
+    const images = [...body.image];
     const options = [...body.options];
-    const category = [...body.category];
-    const filter = [...body.filter];
+    const catsFils = body.category.concat(body.filter);
     const attribute = [...body.attribute];
     const wholesale_prices = [...body.wholesales];
     delete body.description;
+    delete body.image;
     delete body.options;
     delete body.category;
     delete body.filter;
@@ -490,18 +497,31 @@ exports.updateProduct = withTransaction(
         });
       }
     }
-    //Update category
+    //Update images
     await transaction.query(
-      `DELETE FROM product_category WHERE product_id = '${product_id}'`
+      `DELETE FROM product_media WHERE product_id = '${product_id}'`
     );
-    if (category && category.length > 0) {
-      for (let cat of category) {
-        await transaction.query("INSERT INTO product_category SET ?", {
+    if (images && images.length > 0) {
+      for (let img of images) {
+        await transaction.query("INSERT INTO product_media SET ?", {
+          media_id: img,
           product_id: product_id,
-          category_id: cat,
         });
       }
     }
+
+    //Update category/filters
+    await transaction.query(
+      `DELETE tr FROM taxonomy_relationship tr LEFT JOIN taxonomy t 
+      ON(t.type = 'product_category' OR t.type = "product_filter") WHERE object_id = '${product_id}'`
+    );
+    for (let cf of catsFils) {
+      await transaction.query("INSERT INTO taxonomy_relationship SET ?", {
+        object_id: product_id,
+        taxonomy_id: cf,
+      });
+    }
+
     //Update options
     await transaction.query(
       `DELETE FROM product_option WHERE product_id = '${product_id}'`
@@ -531,7 +551,7 @@ exports.updateProduct = withTransaction(
         }
       }
     }
-    //Update attribute
+    // Update attribute
     await transaction.query(
       `DELETE FROM product_attribute WHERE product_id = '${product_id}'`
     );
@@ -545,18 +565,6 @@ exports.updateProduct = withTransaction(
             description: attDesc.description,
           });
         }
-      }
-    }
-    //Update filter
-    await transaction.query(
-      `DELETE FROM product_filter WHERE product_id = '${product_id}'`
-    );
-    if (filter && filter.length > 0) {
-      for (let fil of filter) {
-        await transaction.query("INSERT INTO product_filter SET ?", {
-          product_id: product_id,
-          filter_id: fil,
-        });
       }
     }
 
@@ -596,6 +604,9 @@ exports.deleteProduct = async (product_id) => {
       i18next.t("product:product_not_found", { product: product_id })
     );
   }
+  // Not waiting for cleaning
+  deleteTaxonomyRelation(product_id);
+
   return +product_id;
 };
 
@@ -612,12 +623,32 @@ exports.findOne = async (product_id) => {
   return product;
 };
 
+exports.getProductImages = async (product_id) => {
+  const [images, fields] = await db.query(
+    `SELECT media_id AS id  FROM product_media WHERE product_id = ${product_id}`
+  );
+
+  let _images = [
+    {
+      isDir: false,
+      ext: ".png",
+      path: staticHost + "/media/no_photo.png",
+      isImg: true,
+    },
+  ];
+  let idx = 0;
+  for (const img of images) {
+    _images[idx] = await Media.getMediaUrlById(img.id);
+    idx++;
+  }
+  return _images;
+};
 exports.getProductCategories = async (product_id) => {
   const [categories, fields] = await db.query(
-    `SELECT c.category_id AS id, c.status, cd.title, cd.description FROM product_category pc
-      LEFT JOIN category_description cd ON(pc.category_id = cd.category_id AND cd.language = '${reqLanguage}')
-      LEFT JOIN category c ON(c.category_id = pc.category_id)
-      WHERE pc.product_id = ${product_id}`
+    `SELECT t.taxonomy_id AS id, t.status, td.title, td.description FROM taxonomy_relationship tr
+      LEFT JOIN taxonomy_description td ON(tr.taxonomy_id = td.taxonomy_id AND td.language = '${reqLanguage}')
+      LEFT JOIN taxonomy t ON(t.taxonomy_id = td.taxonomy_id)
+      WHERE tr.object_id = ${product_id} AND t.type = 'product_category'`
   );
 
   return categories;
@@ -655,12 +686,13 @@ exports.getProductWholesales = async (product_id) => {
 };
 
 exports.getProductFilters = async (product_id) => {
-  const [filters, _f] = await db.query(
-    `SELECT f.filter_id AS id, fd.title, f.status FROM product_filter pf
-      LEFT JOIN filter_description fd ON(pf.filter_id = fd.filter_id AND fd.language = '${reqLanguage}')
-      LEFT JOIN filter f ON(f.filter_id = pf.filter_id)
-      WHERE pf.product_id = ${product_id}`
+  const [filters, fields] = await db.query(
+    `SELECT t.taxonomy_id AS id, t.status, td.title, td.description FROM taxonomy_relationship tr
+      LEFT JOIN taxonomy_description td ON(tr.taxonomy_id = td.taxonomy_id AND td.language = '${reqLanguage}')
+      LEFT JOIN taxonomy t ON(t.taxonomy_id = td.taxonomy_id)
+      WHERE tr.object_id = ${product_id} AND t.type = 'product_filter'`
   );
+
   return filters;
 };
 
@@ -681,16 +713,15 @@ exports.switchStatus = async (product_id, status) => {
 exports.getAllRaw = async (q) => {
   const query = q || "";
 
-  let sql = `SELECT p.product_id, p.image, p.price, p.status, pd.title
+  let sql = `SELECT p.product_id, p.price, p.status, pd.title
   FROM product p 
   LEFT JOIN product_description pd ON(p.product_id = pd.product_id)
   WHERE pd.language = '${reqLanguage}' AND CONCAT_WS(pd.title, pd.tags, p.product_id) LIKE '%${query}%'
   `;
 
   const [products, _c] = await db.query(sql);
-
   for (const prod of products) {
-    prod.image = prod.image.split(",");
+    prod.images = await this.getProductImages(prod.product_id);
   }
   return products;
 };
@@ -705,4 +736,13 @@ const calculateProductQuantityANDPrice = (options) => {
     }
   }
   return { calculatedQty, lowestPrice };
+};
+
+const deleteTaxonomyRelation = async (id) => {
+  let sql = `
+  DELETE tr FROM taxonomy_relationship tr LEFT JOIN taxonomy t 
+  ON(tr.taxonomy_id = t.taxonomy_id) WHERE tr.object_id = '${id}' AND t.type LIKE 'product_%'
+  `;
+
+  await db.query(sql);
 };

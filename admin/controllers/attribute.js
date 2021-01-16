@@ -55,7 +55,7 @@ exports.getAttribute = async (req, res, next) => {
         i18next.t("attribute:attribute_not_found", { id: id })
       );
     }
-    res.status(201).json({ success: true, data: attribute });
+    res.status(200).json({ success: true, data: attribute });
   } catch (err) {
     next(err);
   }

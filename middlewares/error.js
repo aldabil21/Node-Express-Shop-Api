@@ -21,7 +21,7 @@ exports.errorHandler = (err, req, res, next) => {
 
   //Multer limit err
   if (err.name === "MulterError" && err.message === "File too large") {
-    message = i18next.t("common:multer_file_large");
+    message = i18next.t("filesystem:multer_file_large");
   }
 
   const error = {
@@ -35,7 +35,7 @@ exports.errorHandler = (err, req, res, next) => {
 };
 
 exports.error404 = (req, res, next) => {
-  // const error = new ErrorResponse(404, "URL Not Found...");
-  // next(error);
-  res.redirect("https://express-shop.netlify.app/");
+  const error = new ErrorResponse(404, "URL Not Found...");
+  next(error);
+  // res.redirect("https://express-shop.netlify.app/");
 };
