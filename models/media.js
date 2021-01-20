@@ -1,7 +1,7 @@
 const syspath = require("path");
 const db = require("../config/db");
 
-exports.getMediaUrlById = async (id) => {
+exports.getMediaById = async (id) => {
   if (!id) {
     return {
       // media_id: "0",

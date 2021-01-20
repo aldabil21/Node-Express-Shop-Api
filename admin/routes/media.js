@@ -60,7 +60,7 @@ router.patch("/gallery/:id", switchGalleryStatus);
 //@route    GET
 //@access   ADMIN
 //@desc     Get Media Dirs
-router.get("/", getDir);
+router.get("/", getSanitizer, getDir);
 //@route    GET
 //@access   ADMIN
 //@desc     Get File Details

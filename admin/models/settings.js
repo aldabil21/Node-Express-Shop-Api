@@ -24,7 +24,10 @@ exports.updateGenerals = async (data) => {
   for (const key in data) {
     const d = data[key];
     if (key === "site_logo") {
-      const { path } = await Media.getMediaUrlById(d.value[0].media_id);
+      const { path } = await Media.getMediaById(
+        d.value[0].media_id,
+        "original"
+      );
       values.push([d.setting_id, d.code, d.key_id, path]);
     } else {
       values.push([d.setting_id, d.code, d.key_id, d.value]);
@@ -32,7 +35,7 @@ exports.updateGenerals = async (data) => {
   }
   // const values = data.map(async (d) => {
   //   if (d.key_id === "site_logo") {
-  //     const { path } = await Media.getMediaUrlById(d.value.media_id);
+  //     const { path } = await Media.getMediaById(d.value.media_id);
   //     return [d.setting_id, d.code, d.key_id, path];
   //   }
   //   return [d.setting_id, d.code, d.key_id, d.value];

@@ -1,7 +1,8 @@
+const Media = require("../models/media");
+const FileSystem = require("../models/filesystem");
 const fs = require("fs");
 const fsPromise = fs.promises;
 const syspath = require("path");
-const Media = require("../models/media");
 const ErrorResponse = require("../../helpers/error");
 const { i18next } = require("../../i18next");
 
@@ -12,51 +13,9 @@ exports.getDir = async (req, res, next) => {
   try {
     const { path } = req.query;
 
-    const mediaPath = syspath.join(__rootpath, "media", ...path);
-    const urlPath = syspath.join("media", ...path);
-
-    //Check path existance
-    const exists = await dirExists(mediaPath);
-    if (!exists) {
-      const { name } = syspath.parse(mediaPath);
-      throw new ErrorResponse(
-        404,
-        i18next.t("filesystem:directory_not_found", { name })
-      );
-    }
-    //Read Dir content
-    const files = await fsPromise.readdir(mediaPath, {
-      encoding: "utf-8",
-      withFileTypes: true,
-    });
-    const folder = [];
-    for (const file of files) {
-      const parse = syspath.parse(file.name);
-      const isDir = file.isDirectory();
-      const mediaPath = `/${urlPath}/${file.name}`;
-      if (isDir) {
-        folder.push({
-          isDir,
-          ext: parse.ext,
-          title: parse.name,
-          path: staticHost + mediaPath,
-        });
-      } else {
-        const media = await Media.getMediaByUrl(mediaPath);
-        if (media.media_id) {
-          folder.push({
-            isDir,
-            ...media,
-          });
-        }
-      }
-    }
-    const sortedFiles = folder
-      .sort((f) => f.isDir && -1)
-      .map((f, i) => {
-        return { ...f, index: i };
-      });
-    res.status(200).json({ success: true, data: sortedFiles });
+    const folders = await FileSystem.GetDir(path);
+    const files = await Media.getFiles(req.query);
+    res.status(200).json({ success: true, data: [...folders, ...files] });
   } catch (err) {
     next(err);
   }
@@ -74,7 +33,7 @@ exports.createDir = async (req, res, next) => {
     const mediaPath = syspath.join(__rootpath, "media", ...path, dirname);
 
     //Check path existance
-    const exists = await dirExists(mediaPath);
+    const exists = await Media.dirExists(mediaPath);
     if (exists) {
       throw new ErrorResponse(
         404,
@@ -106,7 +65,7 @@ exports.deleteDir = async (req, res, next) => {
     if (type === "dir") {
       // Check path existance
       const dirPath = syspath.join(__rootpath, "media", ...path, file);
-      const exists = await dirExists(dirPath);
+      const exists = await Media.dirExists(dirPath);
       if (!exists) {
         throw new ErrorResponse(
           404,
@@ -120,11 +79,6 @@ exports.deleteDir = async (req, res, next) => {
       Media.deleteNestedMedia(nestedPaths);
     } else {
       const _deleted = await Media.deleteMedia(file);
-      const filePath = syspath.join(__rootpath, ..._deleted.url.split("/"));
-      const fexists = await dirExists(filePath);
-      if (fexists) {
-        fsPromise.unlink(filePath);
-      }
     }
 
     // // Delete multiple dirs
@@ -142,12 +96,4 @@ exports.deleteDir = async (req, res, next) => {
   } catch (err) {
     next(err);
   }
-};
-
-const dirExists = async (path) => {
-  return new Promise((resolve, reject) => {
-    fs.access(path, fs.constants.F_OK, (error) => {
-      resolve(!error);
-    });
-  });
 };

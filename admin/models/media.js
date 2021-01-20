@@ -1,43 +1,102 @@
+const fs = require("fs");
+const fsPromise = fs.promises;
 const db = require("../../config/db");
 const withTransaction = require("../helpers/withTransaction");
 const { i18next } = require("../../i18next");
 const ErrorResponse = require("../helpers/error");
 const syspath = require("path");
-const { getMediaUrlById } = require("../../models/media");
+const { getMediaById } = require("../../models/media");
+const { CONSTANTS } = require("../../helpers/constants");
+const iMagic = require("gm").subClass({ imageMagick: true });
+const Filesystem = require("./filesystem");
 
-exports.saveMedia = async (file, uploaded_by, req) => {
-  const { path, mimetype } = file;
-  const { name, ext } = syspath.parse(path);
-  let url = "/" + path;
-  const [result, _] = await db.query(`INSERT INTO media SET ?`, {
-    title: name,
-    url,
-    uploaded_by,
-  });
+exports.getFiles = async (query, size = "thumbnail") => {
+  const { q, page, perPage, sort, direction, path } = query;
+  const _start = (page - 1) * perPage;
+  const urlPath = syspath.join("/", "media", ...path);
+  let sql = `
+  SELECT DISTINCT m.media_id, m.title, m.mimetype,
+  CASE WHEN m.is_image THEN
+    (SELECT CONCAT('${staticHost}', url) FROM media_variation WHERE media_id = m.media_id AND code = '${size}')
+    ELSE
+    CONCAT('${staticHost}', m.url)
+    END AS path,
+  CASE WHEN m.is_image THEN
+    (SELECT CONCAT('${staticHost}', url) FROM media_variation WHERE media_id = m.media_id AND code = 'webp_${size}')
+    END AS webpPath
+  FROM media m
+  WHERE CONCAT_WS(m.title, m.url) LIKE '%${q}%' AND m.destination = '${urlPath}'
+  ORDER BY m.${sort} ${direction} LIMIT ${_start}, ${perPage}`;
+  const [files, _] = await db.query(sql);
 
-  if (!result.insertId) {
-    url = null;
+  for (const file of files) {
+    const parse = syspath.parse(file.path);
+    file.ext = parse.ext;
+    file.isImg = CONSTANTS.imageMime.includes(file.mimetype);
+    file.isDir = false;
   }
 
-  return {
-    isDir: false,
-    ext: ext,
-    title: name,
-    path: staticHost + url,
-    media_id: result.insertId,
-    isImg: isImage(null, ext),
-  };
+  return files;
 };
+exports.uploadMedia = withTransaction(
+  async (transaction, file, uploaded_by) => {
+    const { path, mimetype } = file;
+    const { name, ext } = syspath.parse(path);
+    const dbPath = syspath.join("/", path);
+    const pathWithoutExt = syspath.join("/", file.destination, name);
+
+    const isImage = this.isImage(null, mimetype);
+    let _resizedPathes = [];
+    let _webpPathes = [];
+
+    if (isImage) {
+      _resizedPathes = await this.resizeUploadedImages(
+        dbPath,
+        pathWithoutExt,
+        ext
+      );
+      _webpPathes = await this.convertToWebP(_resizedPathes);
+    }
+    const [result, _] = await transaction.query(`INSERT INTO media SET ?`, {
+      title: name,
+      url: dbPath,
+      destination: syspath.join("/", file.destination),
+      mimetype,
+      is_image: isImage,
+      uploaded_by,
+    });
+
+    if (!result.insertId) {
+      // url = null;
+      throw new ErrorResponse(422, i18next.t("filesystem:upload_err"));
+    }
+
+    if ([..._resizedPathes, ..._webpPathes].length) {
+      const values = [..._resizedPathes, ..._webpPathes].map((p) => [
+        result.insertId,
+        p.url,
+        p.code,
+      ]);
+      let sql = ` INSERT INTO media_variation (media_id, url, code) VALUES ? `;
+      await transaction.query(sql, [values]);
+    }
+
+    await transaction.commit();
+    return this.getMediaById(result.insertId);
+    // return {
+    //   isDir: false,
+    //   ext: ext,
+    //   title: name,
+    //   path: staticHost + pathWithoutExt + ".webp",
+    //   media_id: result.insertId,
+    //   isImg: isImage,
+    // };
+  }
+);
+
 exports.getMediaByUrl = async (url, isFullUrl) => {
   let __url = url;
-  let noPhoto = {
-    // media_id: "0",
-    isDir: false,
-    ext: ".png",
-    path: staticHost + "/media/no_photo.png",
-    isImg: true,
-    title: "MISSING PHOTO",
-  };
+  let noPhoto = this.getEmptyMedia();
   if (!__url) {
     return noPhoto;
   }
@@ -78,7 +137,7 @@ exports.getMediaByUrl = async (url, isFullUrl) => {
   if (result.length && result[0].media_id) {
     file = result[0];
     const parse = syspath.parse(file.path);
-    file.isImg = isImage(file);
+    file.isImg = this.isImage(file);
     file.isDir = false;
     file.ext = parse.ext;
     file.categories = JSON.parse(file.categories) || [];
@@ -92,7 +151,12 @@ exports.getFileDetail = async (id) => {
   const media_id = id > 0 ? id : 0;
 
   let sql = `
-  SELECT m.media_id, m.title, CONCAT('${staticHost}',m.url) AS path,
+  SELECT m.media_id, m.title, CONCAT('${staticHost}',m.url) AS path, m.date_added,
+  CASE WHEN m.is_image THEN
+  CONCAT(
+    GROUP_CONCAT(DISTINCT CONCAT('${staticHost}',mv.url))
+  )
+  END AS links,
   CONCAT(a.firstname, " ", a.lastname) AS uploader,
   CONCAT(
     '[',
@@ -117,6 +181,7 @@ exports.getFileDetail = async (id) => {
   LEFT JOIN taxonomy_relationship tr ON(tr.object_id = m.media_id)
   LEFT JOIN taxonomy_description td ON(tr.taxonomy_id = td.taxonomy_id AND td.language = '${reqLanguage}')
   LEFT JOIN taxonomy t ON(t.taxonomy_id = tr.taxonomy_id)
+  LEFT JOIN media_variation mv ON(m.media_id = mv.media_id)
   WHERE m.media_id = '${media_id}' 
   `;
   const [result, _] = await db.query(sql);
@@ -125,11 +190,16 @@ exports.getFileDetail = async (id) => {
   if (result.length && result[0].media_id) {
     file = result[0];
     const parse = syspath.parse(file.path);
-    file.isImg = isImage(file);
+    const dimension = await this.getMediaDimension(file.path);
+    const filesize = await this.getMediaFileSize(file.path);
+    file.isImg = this.isImage(file);
     file.isDir = false;
     file.ext = parse.ext;
+    file.links = file.links ? file.links.split(",") : [];
     file.categories = JSON.parse(file.categories) || [];
     file.tags = JSON.parse(file.tags) || [];
+    file.dimension = dimension;
+    file.filesize = filesize;
   }
 
   return file;
@@ -157,45 +227,78 @@ exports.updateFileDetail = withTransaction(async (transaction, id, body) => {
 
   return this.getFileDetail(id);
 });
-exports.deleteMedia = async (mediaId) => {
-  const [media, __] = await db.query(
-    `SELECT url FROM media WHERE media_id = '${mediaId}'`
+exports.deleteMedia = withTransaction(async (transaction, mediaId) => {
+  const [media, __] = await transaction.query(
+    `SELECT m.url,
+    CASE WHEN m.is_image THEN
+      GROUP_CONCAT(DISTINCT mv.url) 
+      END AS urls
+    FROM media m
+    LEFT JOIN media_variation mv ON(m.media_id = mv.media_id)
+    WHERE m.media_id = '${mediaId}'
+    `
   );
-  const [result, _] = await db.query(
+  const [result, _] = await transaction.query(
     `DELETE FROM media WHERE media_id = '${mediaId}'`
   );
+  for (const _m of media) {
+    await Filesystem.deleteFromDisk(_m.url);
+    if (_m.urls) {
+      const urls = _m.urls.split(",");
+      for (const url of urls) {
+        await Filesystem.deleteFromDisk(url);
+      }
+    }
+  }
+  await transaction.commit();
   return media[0];
-};
+});
+
 exports.deleteNestedMedia = async (path) => {
   let sql = `DELETE FROM media WHERE url LIKE '${path}%'`;
   await db.query(sql);
 };
-exports.getMediaUrlById = async (id) => {
+exports.getMediaById = async (id, size = "thumbnail") => {
+  const noPhoto = this.getEmptyMedia();
   if (!id) {
-    return {
-      // media_id: "0",
-      isDir: false,
-      ext: ".png",
-      path: staticHost + "/media/no_photo.png",
-      isImg: true,
-    };
+    return noPhoto;
   }
-
-  const [result, _] = await db.query(
-    `SELECT DISTINCT * FROM media WHERE media_id = '${id}'`
-  );
-  let media = {};
+  const [result, _] = await db.query(`
+    SELECT DISTINCT m.media_id, m.title, m.mimetype, m.is_image AS isImg,
+    CASE WHEN m.is_image THEN
+      (SELECT CONCAT('${staticHost}', url) FROM media_variation WHERE media_id = m.media_id AND code = '${size}')
+      ELSE
+      CONCAT('${staticHost}', m.url)
+      END AS path,
+    CASE WHEN m.is_image THEN
+      (SELECT CONCAT('${staticHost}', url) FROM media_variation WHERE media_id = m.media_id AND code = 'webp_${size}')
+      END AS webpPath
+    FROM media m WHERE media_id = '${id}'
+  `);
+  let media;
   if (result.length) {
-    _media = result[0];
-    const parse = syspath.parse(_media.url);
-    media.isImg = isImage(_media);
+    media = result[0];
+    const parse = syspath.parse(media.path);
     media.isDir = false;
     media.ext = parse.ext;
-    media.name = parse.name;
-    media.path = staticHost + _media.url;
-    media.media_id = _media.media_id;
+    //   media.isImg = this.isImage(_media);
+    //   media.title = parse.title;
+    //   media.path = staticHost + _media.url;
+    //   media.media_id = _media.media_id;
+    return media;
+  } else {
+    return noPhoto;
   }
-  return media;
+};
+exports.getEmptyMedia = () => {
+  return {
+    // media_id: "0",
+    isDir: false,
+    ext: ".png",
+    path: staticHost + "/media/no_photo.png",
+    isImg: true,
+    title: "MISSING PHOTO",
+  };
 };
 
 /**
@@ -239,7 +342,7 @@ exports.getGallery = async (gallery_id) => {
     const _images = gallery.images ? gallery.images.split(",") : [];
     let images = [];
     for (const img of _images) {
-      const _img = await getMediaUrlById(img);
+      const _img = await getMediaById(img);
       images.push(_img);
     }
     gallery.images = images;
@@ -274,7 +377,7 @@ exports.getGalleryForEdit = async (gallery_id) => {
     const _images = gallery.images ? gallery.images.split(",") : [];
     let images = [];
     for (const img of _images) {
-      const _img = await getMediaUrlById(img);
+      const _img = await getMediaById(img);
       images.push(_img);
     }
     gallery.images = images;
@@ -368,14 +471,161 @@ exports.switchGalleryStatus = async (gallery_id, status) => {
   return status;
 };
 
-const isImage = (file, ext) => {
+exports.dirExists = async (path) => {
+  return new Promise((resolve, reject) => {
+    return fs.access(path, fs.constants.F_OK, (error) => {
+      resolve(!error);
+    });
+  });
+};
+
+exports.resizeUploadedImages = async (fullpath, withoutExt, ext) => {
+  const fPath = syspath.join(__rootpath, fullpath);
+  const tPath = syspath.join(__rootpath, withoutExt);
+  const promises = [{ url: fullpath, code: "original" }];
+  const { width, height } = await new Promise((resolve, reject) => {
+    return iMagic(fPath).size(function (err, value) {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(value);
+      }
+    });
+  });
+  if (width > 800) {
+    promises.push(
+      new Promise((resolve, reject) => {
+        return iMagic(fPath)
+          .resize(800)
+          .write(`${tPath}_large${ext}`, (err) => {
+            if (err) {
+              reject(err);
+            } else {
+              resolve({ url: `${withoutExt}_large${ext}`, code: "large" });
+            }
+          });
+      })
+    );
+  }
+  if (width > 600) {
+    promises.push(
+      new Promise((resolve, reject) => {
+        return iMagic(fPath)
+          .resize(600)
+          .write(`${tPath}_medium${ext}`, (err) => {
+            if (err) {
+              reject(err);
+            } else {
+              resolve({ url: `${withoutExt}_medium${ext}`, code: "medium" });
+            }
+          });
+      })
+    );
+    promises.push(
+      new Promise((resolve, reject) => {
+        return iMagic(fPath)
+          .resize(600, 600, "!")
+          .write(`${tPath}_600x600${ext}`, (err) => {
+            if (err) {
+              reject(err);
+            } else {
+              resolve({ url: `${withoutExt}_600x600${ext}`, code: "600x600" });
+            }
+          });
+      })
+    );
+  }
+  if (width > 300) {
+    promises.push(
+      new Promise((resolve, reject) => {
+        return iMagic(fPath)
+          .resize(300, 300, "!")
+          .write(`${tPath}_300x300${ext}`, (err) => {
+            if (err) {
+              reject(err);
+            } else {
+              resolve({ url: `${withoutExt}_300x300${ext}`, code: "300x300" });
+            }
+          });
+      })
+    );
+  }
+  promises.push(
+    new Promise((resolve, reject) => {
+      return iMagic(fPath)
+        .resize(150, 150, "!")
+        .write(`${tPath}_150x150${ext}`, (err) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve({ url: `${withoutExt}_150x150${ext}`, code: "thumbnail" });
+          }
+        });
+    })
+  );
+  return Promise.all(promises);
+};
+exports.convertToWebP = async (pathes = []) => {
+  let promises = [];
+  for (const path of pathes) {
+    const { dir, name, ext } = syspath.parse(path.url);
+    const fPath = syspath.join(__rootpath, dir, name);
+    promises.push(
+      new Promise((resolve, reject) => {
+        return iMagic(fPath + ext)
+          .setFormat("webp")
+          .write(`${fPath}.webp`, (err) => {
+            if (err) {
+              reject(err);
+            } else {
+              resolve({
+                url: `${syspath.join(dir, name)}.webp`,
+                code: "webp_" + path.code,
+              });
+            }
+          });
+      })
+    );
+  }
+  return Promise.all(promises);
+};
+
+exports.getMediaDimension = async (path) => {
+  return new Promise((resolve, reject) => {
+    return iMagic(path).size(function (err, value) {
+      resolve(value);
+    });
+  });
+};
+exports.getMediaFileSize = async (path, toUnit) => {
+  return new Promise((resolve, reject) => {
+    return iMagic(path).filesize(function (err, value) {
+      const val = value.includes("MB") ? value.split("MB") : value.split("B");
+      const res = {
+        KB: (val[0] * 0.001).toFixed(2),
+        MB: parseFloat(val[0]).toFixed(2),
+      };
+      let filesize;
+      if (!toUnit) {
+        if (+res.KB > 1000 || value.includes("MB")) {
+          filesize = res.MB + "MB";
+        } else {
+          filesize = res.KB + "KB";
+        }
+      } else {
+        filesize = res[toUnit] + toUnit;
+      }
+      resolve(filesize);
+    });
+  });
+};
+exports.isImage = (file, ext) => {
   // Perhaps consider using a lib like mmmagic/magic numbers etx...
   let _ext;
   if (file) {
-    ext = syspath.parse(file.url || file.path || "").ext;
+    _ext = syspath.parse(file.url || file.path || "").ext;
   } else if (ext) {
     _ext = ext;
   }
-  const mt = [".png", ".gif", ".jpg", ".jpeg", ".bmp", ".webp"];
-  return mt.includes(ext);
+  return CONSTANTS.imageMime.includes(_ext.toLowerCase());
 };

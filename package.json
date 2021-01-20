@@ -21,10 +21,12 @@
     "@types/mysql2": "github:types/mysql2",
     "@types/node": "^14.0.23",
     "concurrently": "^5.3.0",
-    "nodemon": "^2.0.4"
+    "gm": "^1.23.1",
+    "nodemon": "^2.0.4",
+    "types": "^0.1.1"
   },
   "dependencies": {
-    "axios": "^0.19.2",
+    "axios": "^0.21.1",
     "bcrypt": "^5.0.0",
     "cookie-parser": "^1.4.5",
     "date-fns": "^2.16.1",
@@ -43,7 +45,7 @@
     "nodemailer": "^6.4.11",
     "pm2": "^4.5.0",
     "redis": "^3.0.2",
-    "soap": "^0.32.0",
+    "soap": "^0.36.0",
     "xss-clean": "^0.1.1"
   },
   "engines": {

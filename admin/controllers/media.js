@@ -12,8 +12,7 @@ exports.upload = async (req, res, next) => {
     if (!req.file) {
       throw new ErrorResponse(422, i18next.t("filesystem:upload_err"));
     }
-
-    const savedUrl = await Media.saveMedia(req.file, admin_id, req);
+    const savedUrl = await Media.uploadMedia(req.file, admin_id);
     res.status(201).json({ success: true, data: savedUrl });
   } catch (err) {
     next(err);

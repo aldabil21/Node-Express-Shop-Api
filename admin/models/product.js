@@ -137,6 +137,7 @@ exports.getProduct = async (product_id) => {
         att.description = JSON.parse(att.description);
       }
     }
+
     //images
     result.images = await this.getProductImages(result.product_id);
   } else {
@@ -236,6 +237,7 @@ exports.getProducts = async (filters) => {
         special =
           product.special && Tax.calculate(product.tax_value, product.special);
       }
+
       // get media
       const images = await this.getProductImages(product.product_id);
 
@@ -590,6 +592,7 @@ exports.updateProduct = withTransaction(
     }
 
     await transaction.commit();
+
     return this.getProduct(product_id);
   }
 );
@@ -625,22 +628,18 @@ exports.findOne = async (product_id) => {
 
 exports.getProductImages = async (product_id) => {
   const [images, fields] = await db.query(
-    `SELECT media_id AS id  FROM product_media WHERE product_id = ${product_id}`
+    `SELECT media_id AS id FROM product_media WHERE product_id = ${product_id}`
   );
-
-  let _images = [
-    {
-      isDir: false,
-      ext: ".png",
-      path: staticHost + "/media/no_photo.png",
-      isImg: true,
-    },
-  ];
-  let idx = 0;
+  let _images = [];
   for (const img of images) {
-    _images[idx] = await Media.getMediaUrlById(img.id);
-    idx++;
+    const _img = await Media.getMediaById(img.id);
+    _images.push(_img);
   }
+
+  if (!_images.length) {
+    _images.push(Media.getEmptyMedia());
+  }
+
   return _images;
 };
 exports.getProductCategories = async (product_id) => {

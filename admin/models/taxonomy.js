@@ -29,7 +29,7 @@ exports.getParentTaxonomies = async (data) => {
   const [taxonomies, fields] = await db.query(sql);
 
   for (const _taxo of taxonomies) {
-    _taxo.image = await Media.getMediaUrlById(_taxo.media_id);
+    _taxo.image = await Media.getMediaById(_taxo.media_id);
   }
 
   return taxonomies;
@@ -44,7 +44,7 @@ exports.getChildTaxonomies = async (parent_id, type) => {
   `;
   const [taxonomies, fields] = await db.query(sql);
   for (const _taxo of taxonomies) {
-    _taxo.image = await Media.getMediaUrlById(_taxo.media_id);
+    _taxo.image = await Media.getMediaById(_taxo.media_id);
   }
   return taxonomies;
 };
@@ -74,7 +74,7 @@ exports.getTaxonomy = async (taxonomy_id, withChildren = true) => {
   let _taxo = null;
   if (taxonomy.length) {
     _taxo = taxonomy[0];
-    _taxo.image = await Media.getMediaUrlById(_taxo.media_id);
+    _taxo.image = await Media.getMediaById(_taxo.media_id);
     if (withChildren) {
       // this.getChildTaxonomies(taxonomy.taxonomy_id);
     }
@@ -103,7 +103,7 @@ exports.getTaxonomyForEdit = async (taxonomy_id) => {
   let result = taxonomy[0];
   if (result && result.taxonomy_id) {
     result.description = JSON.parse(result.description);
-    result.image = await Media.getMediaUrlById(result.media_id);
+    result.image = await Media.getMediaById(result.media_id);
   } else {
     result = null;
   }

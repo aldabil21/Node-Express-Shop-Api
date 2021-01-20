@@ -380,7 +380,7 @@ exports.getProductImages = async (product_id) => {
   ];
   let idx = 0;
   for (const img of images) {
-    _images[idx] = await Media.getMediaUrlById(img.id);
+    _images[idx] = await Media.getMediaById(img.id);
     idx++;
   }
   return _images;
