@@ -11,6 +11,7 @@ const checkout = require("./checkout");
 const address = require("./address");
 const settings = require("./settings");
 const card = require("./card");
+const media = require("./media");
 
 // router.get("/", (req, res) =>
 //   res.sendFile(path.join(__dirname, "..", "client", "index.html"))
@@ -23,5 +24,6 @@ router.use("/checkout", checkout);
 router.use("/address", address);
 router.use("/config", settings);
 router.use("/card", card);
+router.use("/media", media);
 
 module.exports = router;

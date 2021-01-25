@@ -11,11 +11,25 @@ const { i18next } = require("../../i18next");
 //@desc     Get Media Dirs
 exports.getDir = async (req, res, next) => {
   try {
-    const { path } = req.query;
+    const { path, page, perPage } = req.query;
 
-    const folders = await FileSystem.GetDir(path);
+    let folders = [];
+    if (page <= 1) {
+      folders = await FileSystem.GetDir(path);
+    }
     const files = await Media.getFiles(req.query);
-    res.status(200).json({ success: true, data: [...folders, ...files] });
+    const totalCount = await Media.getFilesTotalCount(req.query);
+    const pagination = {
+      totalCount,
+      currentPage: +page,
+      perPage: +perPage,
+      totalPages: Math.ceil(totalCount / +perPage),
+    };
+
+    res.status(200).json({
+      success: true,
+      data: { files: [...folders, ...files], pagination },
+    });
   } catch (err) {
     next(err);
   }
@@ -37,7 +51,15 @@ exports.createDir = async (req, res, next) => {
     if (exists) {
       throw new ErrorResponse(
         404,
-        i18next.t("filesystem:directory_exists", { name: dirname })
+        i18next.t("filesystem:directory_exists", { name: dirname }),
+        [
+          {
+            param: "dirname",
+            msg: i18next.t("filesystem:directory_exists", {
+              name: dirname,
+            }),
+          },
+        ]
       );
     }
 

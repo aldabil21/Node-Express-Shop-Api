@@ -5,7 +5,6 @@ const withTransaction = require("../helpers/withTransaction");
 const { i18next } = require("../../i18next");
 const ErrorResponse = require("../helpers/error");
 const syspath = require("path");
-const { getMediaById } = require("../../models/media");
 const { CONSTANTS } = require("../../helpers/constants");
 const iMagic = require("gm").subClass({ imageMagick: true });
 const Filesystem = require("./filesystem");
@@ -37,6 +36,19 @@ exports.getFiles = async (query, size = "thumbnail") => {
   }
 
   return files;
+};
+exports.getFilesTotalCount = async (query) => {
+  const { q, page, perPage, sort, direction, path } = query;
+  const _start = (page - 1) * perPage;
+  const urlPath = syspath.join("/", "media", ...path);
+  let sql = `
+  SELECT DISTINCT COUNT(*) AS total
+  FROM media m
+  WHERE CONCAT_WS(m.title, m.url) LIKE '%${q}%' AND m.destination = '${urlPath}'
+  `;
+  const [res, _] = await db.query(sql);
+  const { total } = res[0];
+  return total;
 };
 exports.uploadMedia = withTransaction(
   async (transaction, file, uploaded_by) => {
@@ -149,9 +161,8 @@ exports.getMediaByUrl = async (url, isFullUrl) => {
 };
 exports.getFileDetail = async (id) => {
   const media_id = id > 0 ? id : 0;
-
   let sql = `
-  SELECT m.media_id, m.title, CONCAT('${staticHost}',m.url) AS path, m.date_added,
+  SELECT m.media_id, m.title, m.destination, CONCAT('${staticHost}',m.url) AS path, m.date_added, m.is_image,
   CASE WHEN m.is_image THEN
   CONCAT(
     GROUP_CONCAT(DISTINCT CONCAT('${staticHost}',mv.url))
@@ -190,16 +201,22 @@ exports.getFileDetail = async (id) => {
   if (result.length && result[0].media_id) {
     file = result[0];
     const parse = syspath.parse(file.path);
-    const dimension = await this.getMediaDimension(file.path);
-    const filesize = await this.getMediaFileSize(file.path);
+    // Dimension
+    if (file.is_image) {
+      const dimension = await this.getMediaDimension(file.path);
+      file.dimension = dimension;
+    }
+    // Filesize
+    const base = file.path.split(staticHost)[1];
+    const filesize = await this.getMediaFileSize(base);
+    file.filesize = filesize;
+    // Others...
     file.isImg = this.isImage(file);
     file.isDir = false;
     file.ext = parse.ext;
     file.links = file.links ? file.links.split(",") : [];
     file.categories = JSON.parse(file.categories) || [];
     file.tags = JSON.parse(file.tags) || [];
-    file.dimension = dimension;
-    file.filesize = filesize;
   }
 
   return file;
@@ -281,10 +298,6 @@ exports.getMediaById = async (id, size = "thumbnail") => {
     const parse = syspath.parse(media.path);
     media.isDir = false;
     media.ext = parse.ext;
-    //   media.isImg = this.isImage(_media);
-    //   media.title = parse.title;
-    //   media.path = staticHost + _media.url;
-    //   media.media_id = _media.media_id;
     return media;
   } else {
     return noPhoto;
@@ -342,7 +355,7 @@ exports.getGallery = async (gallery_id) => {
     const _images = gallery.images ? gallery.images.split(",") : [];
     let images = [];
     for (const img of _images) {
-      const _img = await getMediaById(img);
+      const _img = await this.getMediaById(img);
       images.push(_img);
     }
     gallery.images = images;
@@ -377,7 +390,7 @@ exports.getGalleryForEdit = async (gallery_id) => {
     const _images = gallery.images ? gallery.images.split(",") : [];
     let images = [];
     for (const img of _images) {
-      const _img = await getMediaById(img);
+      const _img = await this.getMediaById(img);
       images.push(_img);
     }
     gallery.images = images;
@@ -597,27 +610,18 @@ exports.getMediaDimension = async (path) => {
     });
   });
 };
-exports.getMediaFileSize = async (path, toUnit) => {
-  return new Promise((resolve, reject) => {
-    return iMagic(path).filesize(function (err, value) {
-      const val = value.includes("MB") ? value.split("MB") : value.split("B");
-      const res = {
-        KB: (val[0] * 0.001).toFixed(2),
-        MB: parseFloat(val[0]).toFixed(2),
-      };
-      let filesize;
-      if (!toUnit) {
-        if (+res.KB > 1000 || value.includes("MB")) {
-          filesize = res.MB + "MB";
-        } else {
-          filesize = res.KB + "KB";
-        }
-      } else {
-        filesize = res[toUnit] + toUnit;
-      }
-      resolve(filesize);
-    });
-  });
+exports.getMediaFileSize = async (path) => {
+  const _path = __rootpath + path;
+  const filesize = await fsPromise.stat(_path);
+  let size = filesize.size;
+  let KB = (size / 1024).toFixed(2);
+  let MB = (size / (1024 * 1024)).toFixed(2);
+
+  if (KB > 1000) {
+    return MB + "MB";
+  } else {
+    return KB + "KB";
+  }
 };
 exports.isImage = (file, ext) => {
   // Perhaps consider using a lib like mmmagic/magic numbers etx...
