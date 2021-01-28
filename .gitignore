@@ -5,3 +5,5 @@ nodemon.json
 nodemon.json.local
 ecosystem.config.js
 package-lock.json
+media/
+media/*
