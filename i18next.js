@@ -31,6 +31,7 @@ const initi18next = async () => {
         "settings",
         "taxonomy",
         "media",
+        "quotation",
       ],
       defaultNS: ["common"],
       // interpolation: {

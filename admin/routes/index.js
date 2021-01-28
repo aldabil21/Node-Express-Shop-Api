@@ -18,6 +18,7 @@ const profile = require("./profile");
 const statistics = require("./statistics");
 const media = require("./media");
 const taxonomy = require("./taxonomy");
+const quotation = require("./quotation");
 
 router.use("/auth", adminAtuh);
 router.use("/products", adminProducts);
@@ -35,6 +36,7 @@ router.use("/profile", profile);
 router.use("/statistics", statistics);
 router.use("/media", media);
 router.use("/taxonomy", taxonomy);
+router.use("/quotation", quotation);
 // router.get((req, res) =>
 //   res.sendFile(path.join(__dirname, "..", "..", "dashboard", "index.html"))
 // );

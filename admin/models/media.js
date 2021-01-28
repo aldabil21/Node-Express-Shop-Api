@@ -12,7 +12,7 @@ const Filesystem = require("./filesystem");
 exports.getFiles = async (query, size = "thumbnail") => {
   const { q, page, perPage, sort, direction, path } = query;
   const _start = (page - 1) * perPage;
-  const urlPath = syspath.join("/", "media", ...path);
+  const urlPath = syspath.join("media", ...path);
   let sql = `
   SELECT DISTINCT m.media_id, m.title, m.mimetype,
   CASE WHEN m.is_image THEN
@@ -72,7 +72,7 @@ exports.uploadMedia = withTransaction(
     const [result, _] = await transaction.query(`INSERT INTO media SET ?`, {
       title: name,
       url: dbPath,
-      destination: syspath.join("/", file.destination),
+      destination: syspath.join(file.destination),
       mimetype,
       is_image: isImage,
       uploaded_by,
