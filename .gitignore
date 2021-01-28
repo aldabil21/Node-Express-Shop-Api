@@ -2,7 +2,7 @@ node_modules
 sync.js
 TODO.todo
 nodemon.json
-nodemon.json.local
+nodemon_prod.json
 ecosystem.config.js
 package-lock.json
 media/
